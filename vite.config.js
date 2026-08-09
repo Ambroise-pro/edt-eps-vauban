@@ -10,7 +10,7 @@ export default defineConfig({
       strategies: 'generateSW',
       filename: 'sw.js',
       manifest: {
-        name: 'EDT EPS Vauban',
+        name: 'EDT EPS Vauban - Emploi du Temps',
         short_name: 'EDT EPS',
         description: 'Emploi du temps EPS – Lycée Vauban. Gestion des tâches, du planning, des absences et des remplacements.',
         theme_color: '#002b5b',
@@ -18,19 +18,25 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
-        start_url: '/',
+        start_url: '/?utm_source=pwa',
         categories: ['education', 'productivity'],
+        prefer_related_applications: false,
         screenshots: [
           { src: 'logo.png', sizes: '540x720', type: 'image/png', form_factor: 'narrow' },
           { src: 'logo.png', sizes: '1024x600', type: 'image/png', form_factor: 'wide' },
         ],
         icons: [
+          { src: 'logo.png', sizes: '64x64', type: 'image/png' },
+          { src: 'logo.png', sizes: '96x96', type: 'image/png' },
+          { src: 'logo.png', sizes: '128x128', type: 'image/png' },
           { src: 'logo.png', sizes: '192x192', type: 'image/png' },
           { src: 'logo.png', sizes: '256x256', type: 'image/png' },
           { src: 'logo.png', sizes: '384x384', type: 'image/png' },
           { src: 'logo.png', sizes: '512x512', type: 'image/png' },
-          { src: 'logo.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'logo.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'logo.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         shortcuts: [
           {

@@ -106,29 +106,136 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Install PWA
-let deferredPrompt;
+// Install PWA - Show native install prompt
+let deferredPrompt = null;
+let pwaInstallShown = false;
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  const installBtn = document.getElementById('pwaInstallBtn');
-  if (installBtn) {
-    installBtn.style.display = 'block';
-    installBtn.addEventListener('click', async () => {
+  console.log('PWA install prompt available');
+
+  // Afficher la notification après 3 secondes
+  if (!pwaInstallShown) {
+    setTimeout(() => {
+      showInstallPrompt();
+    }, 3000);
+  }
+});
+
+function showInstallPrompt() {
+  if (deferredPrompt && !pwaInstallShown) {
+    pwaInstallShown = true;
+
+    // Créer la notification d'installation
+    let installContainer = document.getElementById('pwaInstallNotification');
+    if (!installContainer) {
+      installContainer = document.createElement('div');
+      installContainer.id = 'pwaInstallNotification';
+      installContainer.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        max-width: 500px;
+        padding: 16px;
+        background: linear-gradient(135deg, #006b5f 0%, #009978 100%);
+        color: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: inherit;
+        animation: slideUp 0.3s ease-out;
+      `;
+
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideUp {
+          from {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        #pwaInstallNotification button {
+          padding: 8px 16px;
+          background: white;
+          color: #006b5f;
+          border: none;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        #pwaInstallNotification button:hover {
+          background: #f0f0f0;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        #pwaInstallNotification button:active {
+          transform: translateY(0);
+        }
+        #pwaInstallText {
+          flex-grow: 1;
+        }
+        #pwaInstallClose {
+          background: rgba(255, 255, 255, 0.2) !important;
+          color: white !important;
+          padding: 6px 12px !important;
+          font-size: 1.2em;
+          line-height: 1;
+        }
+      `;
+      if (!document.head.querySelector('style[data-pwa-install]')) {
+        style.setAttribute('data-pwa-install', 'true');
+        document.head.appendChild(style);
+      }
+      document.body.appendChild(installContainer);
+    }
+
+    installContainer.innerHTML = `
+      <span id="pwaInstallText">📱 Installer l'app pour un accès rapide</span>
+      <button id="pwaInstallInstallBtn">Installer</button>
+      <button id="pwaInstallClose">✕</button>
+    `;
+
+    document.getElementById('pwaInstallInstallBtn').addEventListener('click', async () => {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response: ${outcome}`);
+        console.log(`User choice: ${outcome}`);
         deferredPrompt = null;
-        installBtn.style.display = 'none';
+        installContainer.remove();
       }
     });
+
+    document.getElementById('pwaInstallClose').addEventListener('click', () => {
+      installContainer.remove();
+    });
   }
-});
+}
+
+// Afficher le prompt si déjà disponible (page rechargée)
+if (deferredPrompt) {
+  showInstallPrompt();
+}
 
 window.addEventListener('appinstalled', () => {
   console.log('App installed successfully');
   deferredPrompt = null;
+  pwaInstallShown = false;
+  const installContainer = document.getElementById('pwaInstallNotification');
+  if (installContainer) {
+    installContainer.remove();
+  }
 });
 
 import { ui } from './dom.js';
