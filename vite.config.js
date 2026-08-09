@@ -5,7 +5,7 @@ export default defineConfig({
   base: '/',
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['logo.png', 'favicon.ico'],
       strategies: 'generateSW',
       filename: 'sw.js',

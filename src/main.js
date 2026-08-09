@@ -1,7 +1,108 @@
+// PWA Update Notification System
+function showUpdateNotification() {
+  // Créer le container de notification
+  let updateContainer = document.getElementById('pwaUpdateNotification');
+  if (!updateContainer) {
+    updateContainer = document.createElement('div');
+    updateContainer.id = 'pwaUpdateNotification';
+    updateContainer.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      max-width: 500px;
+      padding: 16px;
+      background: linear-gradient(135deg, #002b5b 0%, #004a8f 100%);
+      color: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: inherit;
+      animation: slideUp 0.3s ease-out;
+    `;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideUp {
+        from {
+          transform: translateY(100px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      #pwaUpdateNotification button {
+        padding: 8px 16px;
+        background: white;
+        color: #002b5b;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #pwaUpdateNotification button:hover {
+        background: #f0f0f0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      #pwaUpdateNotification button:active {
+        transform: translateY(0);
+      }
+      #pwaUpdateText {
+        flex-grow: 1;
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(updateContainer);
+  }
+
+  updateContainer.innerHTML = `
+    <span id="pwaUpdateText">📦 Une nouvelle version est disponible</span>
+    <button id="pwaReloadBtn">Actualiser</button>
+  `;
+
+  document.getElementById('pwaReloadBtn').addEventListener('click', () => {
+    window.location.reload();
+  });
+}
+
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(err => {
+  navigator.serviceWorker.register('/sw.js').then(registration => {
+    // Vérifier les mises à jour toutes les heures
+    setInterval(() => {
+      registration.update();
+    }, 60 * 60 * 1000);
+
+    // Écouter les mises à jour disponibles
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+          // Une nouvelle version a été activée
+          showUpdateNotification();
+        }
+      });
+    });
+  }).catch(err => {
     console.log('SW registration failed:', err);
+  });
+
+  // Écouter aussi les messages du service worker
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // Vérifier si une nouvelle version est prête
+    if (navigator.serviceWorker.controller) {
+      showUpdateNotification();
+    }
   });
 }
 
