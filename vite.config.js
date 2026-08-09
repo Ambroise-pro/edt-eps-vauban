@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  base: '/edt/',
+  base: '/',
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -14,7 +14,7 @@ export default defineConfig({
         theme_color: '#0b7285',
         background_color: '#f8fafc',
         display: 'standalone',
-        start_url: '/edt/',
+        start_url: '/',
         icons: [
           { src: 'logo.png', sizes: '192x192', type: 'image/png' },
           { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
