@@ -1,0 +1,1516 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EDT EPS VAUBAN</title>
+    <link rel="icon" type="image/png" href="./logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <!-- FullCalendar v6 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales/fr.global.min.js"></script>
+    <style>
+      .fc { --fc-border-color: #e5e7eb; --fc-button-bg-color: #4f46e5; --fc-button-border-color: #4f46e5; }
+      .fc .fc-col-header-cell { background-color: #f9fafb; color: #374151; font-weight: 600; }
+      .fc .fc-daygrid-day-number { color: #6b7280; }
+      .fc-timegrid-slot-label { color: #9ca3af; }
+      .fc-v-event { background-color: #e0e7ff !important; border: 1px solid #c7d2fe !important; color: #1e1b4b !important; }
+      .fc-v-event:hover { filter: brightness(0.95); }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="adminSidebarToggleBtn" class="sidebar-toggle app-sidebar-launcher" type="button" title="Navigation">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div class="brand-wrap">
+        <div class="brand-logo-stack">
+          <img src="./logo.png" alt="Logo Lycée Vauban" class="brand-logo" />
+          <button id="schoolYearBadgeMobile" class="school-year-badge-mobile" type="button" title="Changer l'année scolaire">2025/26</button>
+        </div>
+        <div class="brand-text">
+          <p class="brand-kicker">Lycée Vauban</p>
+          <h1>EDT EPS</h1>
+        </div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="toggleFullscreenBtn" class="fullscreen-nav-btn" type="button" title="Basculer plein écran">
+          <span class="material-symbols-outlined">fullscreen</span>
+        </button>
+        <button id="tasksNotificationBellBtn" class="notification-bell-btn" type="button" title="Mes tâches">
+          <span class="material-symbols-outlined">notifications</span>
+          <span id="tasksNotificationBadge" class="notification-badge hidden">0</span>
+        </button>
+        <button id="notificationPreferencesBtn" class="notification-bell-btn" type="button" title="Préférences de notifications">
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+        <div class="user-simulation">
+        <div id="authStatus" class="auth-status">
+          <div id="userInfo" class="hidden">
+            <span id="userDisplayName"></span>
+            <button id="logoutBtn" class="secondary-btn">Déconnexion</button>
+          </div>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <div id="adminShell" class="admin-shell app-shell-global">
+        <div class="admin-shell-content">
+          <nav class="admin-tabs-horizontal" aria-label="Navigation principale de l'application">
+            <button id="publicModeBtn" class="active" type="button">
+              <span class="material-symbols-outlined">calendar_month</span>
+              <span>EDT</span>
+            </button>
+            <button id="desiderataModeBtn" type="button">
+              <span class="material-symbols-outlined">how_to_reg</span>
+              <span>Voeux</span>
+            </button>
+            <div class="app-sidebar-divider"></div>
+            <button id="adminTabAssignBtn" type="button">
+              <span class="material-symbols-outlined">assignment_ind</span>
+              <span>Affectation</span>
+            </button>
+            <button id="adminTabProgramBtn" type="button">
+              <span class="material-symbols-outlined">calendar_add_on</span>
+              <span>Programmation</span>
+            </button>
+            <button id="adminTabAlgoBtn" type="button">
+              <span class="material-symbols-outlined">memory</span>
+              <span>Algo</span>
+            </button>
+            <button id="adminTabBusBtn" type="button">
+              <span class="material-symbols-outlined">directions_bus</span>
+              <span>Bus</span>
+            </button>
+            <button id="adminTabTasksBtn" type="button">
+              <span class="material-symbols-outlined">assignment</span>
+              <span>Tâches</span>
+            </button>
+            <button id="adminTabDocumentsBtn" type="button">
+              <span class="material-symbols-outlined">folder</span>
+              <span>Documents</span>
+            </button>
+            <button id="adminTabAbsenceBtn" type="button">
+              <span class="material-symbols-outlined">person_off</span>
+              <span>Absences</span>
+            </button>
+            <button id="adminTabEmailTemplatesBtn" type="button">
+              <span class="material-symbols-outlined">mail</span>
+              <span>Templates Email</span>
+            </button>
+            <details id="adminDataMenu" class="admin-data-menu">
+              <summary>
+                <span class="material-symbols-outlined">dataset</span>
+                <span>Données</span>
+                <span class="material-symbols-outlined admin-data-menu-caret">expand_more</span>
+              </summary>
+              <div class="admin-data-menu-list">
+                <button id="adminTabSchoolYearBtn" type="button">
+                  <span class="material-symbols-outlined">school</span>
+                  <span>Année scolaire</span>
+                </button>
+                <button id="adminTabCreationBtn" type="button">
+                  <span class="material-symbols-outlined">add_box</span>
+                  <span>Création</span>
+                </button>
+                <button id="adminTabManageBtn" type="button">
+                  <span class="material-symbols-outlined">settings_suggest</span>
+                  <span>Gestion</span>
+                </button>
+                <button id="adminTabRepartitionBtn" type="button">
+                  <span class="material-symbols-outlined">reorder</span>
+                  <span>Répartition</span>
+                </button>
+                <button id="adminTabSwimBtn" type="button">
+                  <span class="material-symbols-outlined">pool</span>
+                  <span>Natation</span>
+                </button>
+                <button id="adminTabRecapBtn" class="active" type="button">
+                  <span class="material-symbols-outlined">analytics</span>
+                  <span>Récapitulatif</span>
+                </button>
+              </div>
+            </details>
+            <button id="adminTabRightsBtn" type="button">
+              <span class="material-symbols-outlined">shield_person</span>
+              <span>Droits</span>
+            </button>
+            <button id="adminTabInventoryBtn" type="button">
+              <span class="material-symbols-outlined">inventory</span>
+              <span>Inventaire</span>
+            </button>
+            <button id="adminSidebarCollapseBtn" class="sidebar-toggle admin-sidebar-bottom-toggle desktop-only" type="button">
+              <span class="material-symbols-outlined">menu_open</span>
+            </button>
+          </nav>
+
+          <div class="app-content-panels">
+      <section id="publicSection" class="view">
+        <div class="public-dashboard-minimal">
+        </div>
+        <div class="card">
+          <h3>Planning hebdomadaire</h3>
+          <p id="publicWeekLabel" class="summary-box"></p>
+          <p id="publicWeekMeta" class="summary-box"></p>
+          <div id="publicTimetableContainer" class="table-wrap"></div>
+          <div class="public-week-nav public-week-nav-minimal">
+            <button id="publicPrevWeekBtn" class="secondary-btn" type="button">Prec.</button>
+            <button id="publicCurrentWeekBtn" class="secondary-btn" type="button">Semaine</button>
+            <button id="publicNextWeekBtn" class="secondary-btn" type="button">Suiv.</button>
+            <input id="publicWeekDate" type="date" aria-label="Aller à la semaine" />
+            <div class="public-dashboard-minimal-select">
+              <select id="publicTeacherSelect"></select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Absences &amp; remplacements</h3>
+          <p id="publicAbsenceSummary" class="summary-box"></p>
+          <div class="public-absence-actions">
+            <button id="publicOpenReplacementModalBtn" class="secondary-btn" type="button">Voir mes opportunités de remplacement</button>
+          </div>
+          <div id="publicAbsenceRequestsContainer" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="desiderataSection" class="view hidden">
+        <div class="desiderata-shell">
+          <aside class="desiderata-side">
+            <div class="card">
+              <h3>Instructions</h3>
+              <div id="desiderataStaticHint" class="card-subtitle">
+                <ul style="padding-left: 1.2rem; margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.4rem;">
+                  <li><strong>★ En vert (Préféré) :</strong> Les créneaux qui vous arrangent le plus.</li>
+                  <li><strong>• En blanc (Neutre) :</strong> Les créneaux qui vous arrangent moins mais restent acceptables.</li>
+                  <li><strong>⛔ En rouge (Indisponible) :</strong> Créneaux où vous ne pouvez pas travailler.</li>
+                  <li><strong>Règle des quotas :</strong> 
+                    <br>- Sans journée OFF : max <strong>6</strong> créneaux indisponibles.
+                    <br>- Avec une journée OFF : max <strong>2</strong> créneaux indisponibles.
+                  </li>
+                </ul>
+                <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem;">
+                  Cliquez sur un créneau pour changer d'état. Le clic-glisser fonctionne aussi.
+                </p>
+              </div>
+              <p id="desiderataHint" class="success-text" style="margin-top: 0.8rem; font-weight: 700;"></p>
+            </div>
+            <div class="card">
+              <h3>Légende</h3>
+              <div class="desiderata-legend">
+                <div><span class="legend-chip pref"></span><span>Préféré</span></div>
+                <div><span class="legend-chip neutral"></span><span>Neutre</span></div>
+                <div><span class="legend-chip unavail"></span><span>Indisponible</span></div>
+                <div><span class="legend-chip dayoff"></span><span>Journée non travaillée</span></div>
+              </div>
+            </div>
+            <div class="card desiderata-summary-card">
+              <h3>Résumé</h3>
+              <div class="desiderata-summary-list">
+                <p>Heures préférées <strong id="desiderataPreferredHours">0h</strong></p>
+                <p>Créneaux indisponibles <strong id="desiderataUnavailableBlocks">0</strong></p>
+                <p>Objectif hebdo <strong id="desiderataTargetHours">0h</strong></p>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Répartition prévue</h3>
+              <div id="desiderataPlannedLevelsContainer" class="table-wrap"></div>
+            </div>
+          </aside>
+          <div class="desiderata-main">
+            <div class="card card-header">
+              <h2>Préférences Enseignant</h2>
+              <p class="card-subtitle">Configurez vos disponibilités et vos créneaux préférés pour l'année scolaire 2025/26.</p>
+              <p id="desiderataYearBadge" class="summary-box"></p>
+              <div class="inline-form-row">
+                <div>
+                  <label for="desiderataTeacherSelect">Choisir un professeur d'EPS</label>
+                  <select id="desiderataTeacherSelect"></select>
+                </div>
+                <div class="summary-box">Les créneaux "Préféré" seront entourés en vert dans l'affectation rapide professeur.</div>
+              </div>
+            </div>
+            <div class="card">
+              <label for="desiderataComment">Commentaire enseignant</label>
+              <textarea id="desiderataComment" rows="3" placeholder="Ex: contraintes personnelles, préférences pédagogiques, remarques..."></textarea>
+            </div>
+            <div class="card">
+              <div id="desiderataGridContainer" class="table-wrap"></div>
+              <div class="desiderata-actions">
+                <div class="desiderata-dayoff-controls">
+                  <label for="desiderataDayOffSelect">Journée non travaillée</label>
+                  <div>
+                    <select id="desiderataDayOffSelect">
+                      <option value="Lundi">Lundi</option>
+                      <option value="Mardi">Mardi</option>
+                      <option value="Mercredi">Mercredi</option>
+                      <option value="Jeudi">Jeudi</option>
+                      <option value="Vendredi">Vendredi</option>
+                    </select>
+                    <button id="desiderataApplyDayOffBtn" class="secondary-btn" type="button">Marquer la journée</button>
+                    <button id="desiderataClearDayOffBtn" class="secondary-btn" type="button">Retirer la journée</button>
+                  </div>
+                </div>
+                <button id="desiderataClearBtn" class="secondary-btn" type="button">Effacer la sélection</button>
+                <div>
+                  <button id="desiderataSaveBtn" class="secondary-btn" type="button">Sauvegarder brouillon</button>
+                  <button id="desiderataSubmitBtn" type="button">Soumettre les désidérata</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminSection" class="view hidden">
+            <!-- ... panels ... -->
+            <div id="adminInventoryPanel" class="admin-panel hidden">
+              <div class="card card-header">
+                <h2>Gestion de l'Inventaire</h2>
+                <p class="card-subtitle">Suivez l'état du matériel EPS et effectuez des recomptes réguliers.</p>
+              </div>
+
+              <div class="admin-grid">
+                <div class="card">
+                  <h3>Ajouter / Mettre à jour du matériel</h3>
+                  <form id="inventoryForm">
+                    <div class="control-group">
+                      <label for="inventoryItemName">Nom du matériel</label>
+                      <input id="inventoryItemName" type="text" placeholder="Ex: Ballons de basket T7" required list="inventoryItemSuggestions">
+                      <datalist id="inventoryItemSuggestions"></datalist>
+                    </div>
+                    <div class="inline-form-row">
+                      <div class="control-group">
+                        <label for="inventoryCount">Quantité</label>
+                        <input id="inventoryCount" type="number" min="0" required>
+                      </div>
+                      <div class="control-group">
+                        <label for="inventoryDate">Date du relevé</label>
+                        <input id="inventoryDate" type="date" required>
+                      </div>
+                    </div>
+                    <button type="submit" id="inventorySubmitBtn">Enregistrer le relevé</button>
+                  </form>
+                </div>
+
+                <div class="card">
+                  <h3>État actuel des stocks</h3>
+                  <div id="inventorySummaryContainer" class="table-wrap">
+                    <p class="summary-box">Chargement de l'inventaire...</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h3>Historique des relevés</h3>
+                <div id="inventoryHistoryContainer" class="table-wrap">
+                  <p class="summary-box">Sélectionnez un matériel pour voir son historique.</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminCreationPanel" class="admin-panel">
+              <div class="program-subtabs creation-subtabs">
+                <button id="creationSubtabTeacherBtn" class="active" type="button">Professeurs</button>
+                <button id="creationSubtabClassBtn" type="button">Classes</button>
+              </div>
+
+              <div id="creationSubpanelTeacher" class="creation-subpanel">
+                <div class="card">
+                  <h2>Créer / Modifier un professeur</h2>
+                  <form id="teacherForm">
+                    <label for="teacherEditSelect">Modifier un professeur existant</label>
+                    <select id="teacherEditSelect">
+                      <option value="">Nouveau professeur</option>
+                    </select>
+
+                    <label for="teacherName">Nom</label>
+                    <input id="teacherName" required type="text" />
+
+                    <label for="teacherEmail">Adresse Email (Identifiant)</label>
+                    <input id="teacherEmail" required type="email" placeholder="prof@etablissement.fr" />
+
+                    <label for="teacherAbbreviation">Abréviation affichée</label>
+                    <input id="teacherAbbreviation" required type="text" maxlength="8" placeholder="Ex: LEP" />
+
+                    <label for="teacherMaxHours">Temps de travail max (h/semaine)</label>
+                    <input id="teacherMaxHours" required type="number" min="1" max="40" />
+
+                    <label for="teacherColor">Couleur du professeur</label>
+                    <input id="teacherColor" type="color" value="#0b7285" />
+
+                    <div id="magicLinkSection" class="magic-link-section hidden">
+                      <label for="teacherMagicLink">Lien de connexion unique</label>
+                      <div class="magic-link-row">
+                        <input id="teacherMagicLink" type="text" readonly placeholder="Générez un lien pour ce professeur..." />
+                        <button id="generateMagicLinkBtn" type="button" class="secondary-btn mini-btn" title="Générer / Regénérer">
+                          <span class="material-symbols-outlined">refresh</span>
+                        </button>
+                        <button id="copyMagicLinkBtn" type="button" class="secondary-btn mini-btn" title="Copier le lien">
+                          <span class="material-symbols-outlined">content_copy</span>
+                        </button>
+                      </div>
+                      <p class="field-hint">Ce lien permet de se connecter sans mot de passe. Partagez-le avec précaution.</p>
+                    </div>
+
+                    <div class="form-actions-row">
+                      <button id="teacherSubmitBtn" type="submit">Ajouter professeur</button>
+                      <button id="teacherCancelEditBtn" type="button" class="secondary-btn">Annuler modification</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <div id="creationSubpanelClass" class="creation-subpanel hidden">
+                <div class="card">
+                  <h2>Créer des classes automatiquement</h2>
+                  <form id="classForm">
+                    <label for="classLevel">Niveau</label>
+                    <select id="classLevel" required>
+                      <option value="">Sélectionner...</option>
+                      <option>Sixième</option>
+                      <option>Cinquième</option>
+                      <option>Quatrième</option>
+                      <option>Troisième</option>
+                      <option>Seconde</option>
+                      <option>Première</option>
+                      <option>Terminale</option>
+                    </select>
+
+                    <label for="classCount">Nombre de classes à créer</label>
+                    <input id="classCount" required type="number" min="1" max="26" value="1" />
+
+                    <label for="classWeeklyHours">Volume horaire EPS (h/semaine)</label>
+                    <input id="classWeeklyHours" required type="number" min="1" max="10" readonly />
+                    <p id="classRuleHint" class="summary-box"></p>
+                    <p id="classCreateInfo" class="summary-box"></p>
+
+                    <button type="submit">Créer les classes automatiquement</button>
+                  </form>
+                </div>
+
+                <div class="card">
+                  <h3>Classes existantes</h3>
+                  <div class="table-wrap">
+                    <table class="standard-table">
+                      <thead>
+                        <tr>
+                          <th>Niveau</th>
+                          <th>Nom</th>
+                          <th>Volume Horaire</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="creationClassesTableBody">
+                        <!-- Rempli dynamiquement -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminAssignPanel" class="admin-panel hidden">
+              <p id="sessionError" class="error-text"></p>
+              <div class="card assign-toolbar-card">
+                <div class="assign-toolbar">
+                  <div class="assign-mode-switch" role="tablist" aria-label="Mode affectation">
+                    <button id="assignModeViewBtn" class="secondary-btn" type="button">Voir</button>
+                    <button id="assignModeAssignBtn" class="secondary-btn" type="button">Affecter</button>
+                    <button id="assignModeReorganizeBtn" class="secondary-btn" type="button">Réorganiser</button>
+                  </div>
+                </div>
+              </div>
+              <div class="assign-layout">
+                <div class="assign-main">
+                  <!-- Section des miniatures (défilement horizontal) -->
+                  <div class="miniatures-wrapper">
+                    <div id="assignTeacherMiniatures" class="miniatures-row"></div>
+                  </div>
+
+                  <!-- Zone de travail dynamique (Comparaison ou Global) -->
+                  <div id="assignWorkspace" class="assign-workspace">
+                    <div id="assignComparisonArea" class="comparison-grid"></div>
+                    <div id="assignGlobalLargeArea" class="global-large-area">
+                      <div class="card">
+                        <div class="global-head">
+                          <h3>Planning Général</h3>
+                          <p id="globalPlannerHint" class="summary-box"></p>
+                          <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                            <div>
+                              <label for="globalPlannerLayout" style="display: block; margin-bottom: 0.3rem;">Layout</label>
+                              <select id="globalPlannerLayout">
+                                <option value="GRID">Vue Grille</option>
+                                <option value="EXCEL">Vue Excel</option>
+                              </select>
+                            </div>
+                            <button id="openRepartitionPopupBtn" class="secondary-btn" type="button" title="Accès rapide à la répartition">
+                              📊 Répartition
+                            </button>
+                            <button id="openAssignmentVerificationBtn" class="secondary-btn" type="button" title="Vérifier la qualité de l'affectation">
+                              🔍 Vérification
+                            </button>
+                          </div>
+                        </div>
+                        <div id="globalPlannerContainer" class="table-wrap"></div>
+                        <div class="assign-filters assign-filters-under-planner">
+                          <div class="control-group">
+                            <label for="assignFilterTeacherSelect">Professeur</label>
+                            <select id="assignFilterTeacherSelect"></select>
+                          </div>
+                          <div class="control-group">
+                            <label for="assignFilterLevelSelect">Niveau</label>
+                            <select id="assignFilterLevelSelect"></select>
+                          </div>
+                          <label class="assign-filter-check">
+                            <input id="assignFilterConflictsOnly" type="checkbox" />
+                            <span>Conflits seulement</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="card">
+                        <div class="schoolyear-actions">
+                          <button id="assignEditLettersBtn" class="secondary-btn" type="button">Changer les lettres</button>
+                          <button id="inviteConsultEdtBtn" class="secondary-btn" type="button">📧 Inviter à consulter l'EDT</button>
+                        </div>
+                      </div>
+                      <div class="card">
+                        <div class="schoolyear-actions">
+                          <h3>📥 Exporter l'EDT</h3>
+                          <button id="exportEdtGlobalPdfBtn" class="secondary-btn" type="button">📄 Global (PDF)</button>
+                          <button id="exportEdtGlobalExcelBtn" class="secondary-btn" type="button">📊 Global (Excel)</button>
+                          <button id="exportEdtIndividualPdfBtn" class="secondary-btn" type="button">👤 Individuel (PDF)</button>
+                          <button id="exportEdtIndividualExcelBtn" class="secondary-btn" type="button">👤 Individuel (Excel)</button>
+                        </div>
+                      </div>
+                      <div class="card">
+                        <div class="assign-context-head">
+                          <h3>Contexte</h3>
+                          <p class="card-subtitle">Clique un créneau ou un cours pour afficher les infos utiles et agir plus vite.</p>
+                        </div>
+                        <div id="assignContextPanel" class="assign-context-panel"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div id="adminProgramPanel" class="admin-panel hidden">
+              <div class="program-subtabs">
+                <button id="programSubtabProgrammingBtn" class="active" type="button">Programmation</button>
+                <button id="programSubtabActivityBtn" type="button">Activité</button>
+                <button id="programSubtabLocationBtn" type="button">Salle</button>
+                <button id="programSubtabPeriodsBtn" type="button">Périodes</button>
+              </div>
+
+              <div id="programSubpanelProgramming" class="program-subpanel">
+                <div class="card">
+                  <div class="program-head">
+                    <div>
+                      <h3>Programmation des Activités &amp; Lieux</h3>
+                      <p class="card-subtitle">Affectez les types d'activités et les salles aux créneaux déjà planifiés.</p>
+                    </div>
+                    <button id="programResetPlanningBtn" class="secondary-btn danger-btn" type="button">
+                      <span class="material-symbols-outlined">restart_alt</span>
+                      Réinitialiser la programmation
+                    </button>
+                  </div>
+
+                  <!-- Filtres -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                      <label for="programFilterTeacher">Filtrer par prof :</label>
+                      <select id="programFilterTeacher">
+                        <option value="">Tous les profs</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="programFilterPeriod">Filtrer par trimestre/semestre :</label>
+                      <select id="programFilterPeriod">
+                        <option value="">Toutes les périodes</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div id="programHint" class="summary-box"></div>
+                  <div id="programAnnualVisualContainer" class="table-wrap"></div>
+                </div>
+
+                <div class="card program-stats-card">
+                  <h3>Statut Global</h3>
+                  <div id="programStats" class="program-stats"></div>
+                  <button id="programHighlightPendingBtn" class="secondary-btn" type="button" style="margin-top:0.8rem; width:100%">
+                    <span class="material-symbols-outlined">visibility</span>
+                    Visualiser les créneaux restants
+                  </button>
+                </div>
+              </div>
+
+              <div id="programSubpanelActivity" class="program-subpanel hidden">
+                <div class="card">
+                  <h3>Activités disponibles</h3>
+                  <div class="program-resource-section">
+                    <div id="programActivitiesList" class="program-list"></div>
+                    <div class="program-inline-form">
+                      <input id="programActivityLabel" type="text" placeholder="Nouvelle activité" />
+                      <input id="programActivityCode" type="text" placeholder="Code activité" maxlength="6" />
+                      <select id="programActivityPreferredLocationSelect">
+                        <option value="">Salle préférentielle (optionnel)</option>
+                      </select>
+                      <button id="programAddActivityBtn" class="secondary-btn" type="button">Ajouter activité</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="programSubpanelLocation" class="program-subpanel hidden">
+                <div class="card">
+                  <h3>Salles &amp; occupation</h3>
+                  <div class="program-resource-section">
+                    <div id="programLocationsList" class="program-list"></div>
+                    <div class="program-inline-form">
+                      <input id="programLocationName" type="text" placeholder="Nouveau lieu" />
+                      <button id="programAddLocationBtn" class="secondary-btn" type="button">Ajouter lieu</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="programSubpanelPeriods" class="program-subpanel hidden">
+                <div class="card">
+                  <h3>Périodes pédagogiques</h3>
+                  <div class="program-resource-section">
+                    <p class="program-section-title">Dates des trimestres</p>
+                    <div class="program-inline-form">
+                      <label for="programTrim1Start">Trimestre 1</label>
+                      <div class="inline-date-row">
+                        <input id="programTrim1Start" type="date" />
+                        <input id="programTrim1End" type="date" />
+                      </div>
+                      <label for="programTrim2Start">Trimestre 2</label>
+                      <div class="inline-date-row">
+                        <input id="programTrim2Start" type="date" />
+                        <input id="programTrim2End" type="date" />
+                      </div>
+                      <label for="programTrim3Start">Trimestre 3</label>
+                      <div class="inline-date-row">
+                        <input id="programTrim3Start" type="date" />
+                        <input id="programTrim3End" type="date" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="program-resource-section">
+                    <p class="program-section-title">Dates des semestres (activités S1/S2)</p>
+                    <div class="program-inline-form">
+                      <label for="programSem1Start">Semestre 1</label>
+                      <div class="inline-date-row">
+                        <input id="programSem1Start" type="date" />
+                        <input id="programSem1End" type="date" />
+                      </div>
+                      <label for="programSem2Start">Semestre 2</label>
+                      <div class="inline-date-row">
+                        <input id="programSem2Start" type="date" />
+                        <input id="programSem2End" type="date" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="program-inline-form">
+                    <button id="programSavePeriodsBtn" class="secondary-btn" type="button">Enregistrer les dates</button>
+                    <p id="programPeriodsInfo" class="summary-box"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminAlgoPanel" class="admin-panel hidden">
+              <div class="card card-header">
+                <h2>Génération des EDT par Algorithme</h2>
+                <p class="card-subtitle">Génération déterministe avec respect strict des contraintes métier de l'application.</p>
+              </div>
+              <div class="admin-grid">
+                <div class="card">
+                  <h3>Paramètres</h3>
+                  <div class="control-group">
+                    <label for="algoGenerationTargetCount">Nb max de créneaux à générer</label>
+                    <input id="algoGenerationTargetCount" type="number" min="1" max="600" value="160" />
+                  </div>
+                  <div class="check-row">
+                    <input id="algoReplaceExistingSessions" type="checkbox" />
+                    <span>Remplacer tous les créneaux existants avant génération</span>
+                  </div>
+                  <h3 style="margin-top:1rem">Pré-placement classes (sans prof)</h3>
+                  <p class="summary-box">Impose des classes sur des créneaux. L'algo choisira ensuite le professeur compatible.</p>
+                  <div class="inline-form-row">
+                    <div class="control-group">
+                      <label for="algoPinnedClassSelect">Classe</label>
+                      <select id="algoPinnedClassSelect"></select>
+                    </div>
+                    <div class="control-group">
+                      <label for="algoPinnedDaySelect">Jour</label>
+                      <select id="algoPinnedDaySelect">
+                        <option value="Lundi">Lundi</option>
+                        <option value="Mardi">Mardi</option>
+                        <option value="Mercredi">Mercredi</option>
+                        <option value="Jeudi">Jeudi</option>
+                        <option value="Vendredi">Vendredi</option>
+                      </select>
+                    </div>
+                    <div class="control-group">
+                      <label for="algoPinnedSlotSelect">Créneau</label>
+                      <select id="algoPinnedSlotSelect"></select>
+                    </div>
+                    <div class="control-group">
+                      <label for="algoPinnedCadenceSelect">Cadence</label>
+                      <select id="algoPinnedCadenceSelect">
+                        <option value="WEEKLY">Toutes les semaines</option>
+                        <option value="WEEK_A">Semaine A</option>
+                        <option value="WEEK_B">Semaine B</option>
+                      </select>
+                    </div>
+                    <div class="control-group">
+                      <button id="algoAddPinnedClassBtn" class="secondary-btn" type="button">+ Ajouter</button>
+                    </div>
+                  </div>
+                  <div id="algoPinnedClassesList" class="ai-constraints-list"></div>
+                  <h3 style="margin-top:1rem">Contraintes manuelles</h3>
+                  <label for="algoConstraintDraft">Nouvelle contrainte</label>
+                  <div class="inline-form-row">
+                    <div class="control-group">
+                      <input id="algoConstraintDraft" type="text" placeholder="Ex: éviter plus de 1 trou le lundi" />
+                    </div>
+                    <div class="control-group">
+                      <button id="algoAddConstraintBtn" class="secondary-btn" type="button">+ Ajouter</button>
+                    </div>
+                  </div>
+                  <div id="algoConstraintsList" class="ai-constraints-list"></div>
+                  <h3 style="margin-top:1rem">Créneaux bloqués (Algo)</h3>
+                  <p class="summary-box">Si un créneau est bloqué, l'algorithme ne peut rien y ajouter.</p>
+                  <div id="algoBlockedSlotsContainer" class="table-wrap"></div>
+                  <p id="algoConstraintsStatus" class="summary-box">Contraintes non chargées.</p>
+                  <div class="form-actions-row" style="margin-top:0.8rem">
+                    <button id="algoSaveConstraintsBtn" class="secondary-btn" type="button">Enregistrer contraintes</button>
+                    <button id="algoClearExistingSessionsBtn" class="secondary-btn" type="button">Supprimer créneaux algo</button>
+                    <button id="algoClearAllSessionsBtn" class="delete-btn" type="button">Supprimer tous les créneaux</button>
+                    <button id="algoGenerateEdtBtn" type="button">Lancer la génération Algo</button>
+                    <button id="algoApplyProposalBtn" class="secondary-btn" type="button">Appliquer la proposition</button>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Règles actives avant lancement</h3>
+                  <p class="card-subtitle">Règles techniques + contraintes manuelles appliquées par l'algorithme.</p>
+                  <div id="algoActiveRulesPanel" class="table-wrap"></div>
+                </div>
+              </div>
+              <div class="card">
+                <h3>Résultat</h3>
+                <p id="algoGenerationStatus" class="summary-box">Prêt pour une génération.</p>
+                <div id="algoGenerationReport" class="table-wrap"></div>
+              </div>
+            </div>
+
+            <div id="adminBusPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Commandes de bus</h3>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                  <button id="busCreateNewOrderBtn" class="primary-btn" type="button">➕ Créer une nouvelle commande</button>
+                </div>
+                <div id="busOrdersHistoryContainer" class="table-wrap"></div>
+              </div>
+              <div class="card">
+                <h3>Transport bus - planning global par jour</h3>
+                <p id="busHint" class="summary-box"></p>
+                <div class="bus-mail-controls">
+                  <div>
+                    <label for="busEmailTo">Email destinataire (Cathy)</label>
+                    <input id="busEmailTo" type="email" placeholder="cathy@exemple.fr" />
+                  </div>
+                  <div class="bus-mail-actions">
+                    <button id="busComposeMailBtn" type="button">Envoyer email Cathy</button>
+                    <button id="busCopyMailBtn" class="secondary-btn" type="button">Copier le texte</button>
+                  </div>
+                </div>
+                <div id="busMailPreview" class="summary-box"></div>
+                <div id="busPlannerContainer" class="bus-days-grid"></div>
+              </div>
+            </div>
+
+            <div id="adminManagePanel" class="admin-panel hidden">
+              <div class="admin-bottom-grid">
+                <div class="card">
+                  <h3>Professeurs</h3>
+                  <ul id="teachersList" class="data-list"></ul>
+                </div>
+                <div class="card">
+                  <h3>Classes</h3>
+                  <ul id="classesList" class="data-list"></ul>
+                </div>
+                <div class="card">
+                  <h3>Créneaux</h3>
+                  <ul id="sessionsList" class="data-list"></ul>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminRepartitionPanel" class="admin-panel hidden">
+              <div class="card card-header">
+                <h2>Répartition des services</h2>
+                <p class="card-subtitle">Gérez les apports et les attributions par professeur et par niveau.</p>
+              </div>
+
+              <div class="card">
+                <h3>Attributions par niveau (Classes)</h3>
+                <p class="summary-box">Cliquez sur + pour ajouter une classe, maintenez cliqué (appui long) pour en retirer une.</p>
+                <div class="schoolyear-actions">
+                  <button id="repartitionResetBtn" class="delete-btn" type="button">Effacer la répartition</button>
+                  <button id="repartitionExportBtn" class="secondary-btn" type="button">Exporter la répartition (CSV)</button>
+                  <button id="repartitionExportExcelBtn" class="secondary-btn" type="button">Exporter Excel (mise en forme)</button>
+                  <button id="repartitionExportImageBtn" class="secondary-btn" type="button">Exporter image (PNG)</button>
+                </div>
+                <div id="repartitionBesoinsContainer" class="table-wrap"></div>
+              </div>
+
+              <div class="card">
+                <h3>Bilan des Heures (Apports vs Affecté)</h3>
+                <div id="repartitionApportsContainer" class="table-wrap"></div>
+              </div>
+            </div>
+
+            <div id="adminTasksPanel" class="admin-panel hidden">
+              <div class="card card-header">
+                <h2>Gestion des Tâches</h2>
+                <p class="card-subtitle">Créez, assignez et suivez les tâches de l'équipe.</p>
+                <div class="tasks-toolbar">
+                  <button id="tasksCreateBtn" class="secondary-btn" type="button">
+                    <span class="material-symbols-outlined">add</span>
+                    Nouvelle tâche
+                  </button>
+                  <div class="control-group">
+                    <label for="tasksFilterCategory">Catégorie</label>
+                    <select id="tasksFilterCategory">
+                      <option value="">Toutes</option>
+                      <option value="REUNION">Réunion</option>
+                      <option value="FORMATION">Formation</option>
+                      <option value="MAINTENANCE">Maintenance</option>
+                      <option value="URGENT">Urgent</option>
+                      <option value="AUTRE">Autre</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Kanban Board -->
+              <div class="kanban-board">
+                <div class="kanban-column" data-status="A_FAIRE">
+                  <div class="kanban-column-header">
+                    <h3>À faire</h3>
+                    <span class="kanban-count" id="tasksCountA_FAIRE">0</span>
+                  </div>
+                  <div class="kanban-cards" id="tasksColumnA_FAIRE"></div>
+                </div>
+
+                <div class="kanban-column" data-status="EN_COURS">
+                  <div class="kanban-column-header">
+                    <h3>En cours</h3>
+                    <span class="kanban-count" id="tasksCountEN_COURS">0</span>
+                  </div>
+                  <div class="kanban-cards" id="tasksColumnEN_COURS"></div>
+                </div>
+
+                <div class="kanban-column" data-status="TERMINEE">
+                  <div class="kanban-column-header">
+                    <h3>Terminée</h3>
+                    <span class="kanban-count" id="tasksCountTERMINEE">0</span>
+                  </div>
+                  <div class="kanban-cards" id="tasksColumnTERMINEE"></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminDocumentsPanel" class="admin-panel hidden">
+              <div class="card card-header">
+                <h2>Gestion des Documents</h2>
+                <p class="card-subtitle">Organisez vos documents par dossiers et téléchargez les fichiers.</p>
+              </div>
+
+              <div class="documents-layout">
+                <!-- Arborescence des dossiers -->
+                <aside class="documents-sidebar">
+                  <div class="card">
+                    <h3>Dossiers</h3>
+
+                    <!-- Formulaire création dossier -->
+                    <div id="documentsCreateFolderForm" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                      <input id="documentsNewFolderName" type="text" placeholder="Nouveau dossier..." style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                      <button id="documentsCreateFolderBtn" class="secondary-btn" type="button" style="white-space: nowrap;">➕ Ajouter</button>
+                    </div>
+
+                    <!-- Arborescence -->
+                    <div id="documentsFoldersList" class="documents-folders-list"></div>
+                  </div>
+                </aside>
+
+                <!-- Zone principale -->
+                <main class="documents-main">
+                  <!-- Contenu du dossier sélectionné -->
+                  <div id="documentsContent" class="card">
+                    <div class="documents-content-header">
+                      <h3 id="documentsCurrentFolderName">Sélectionnez un dossier</h3>
+                      <div style="display: flex; gap: 0.5rem;">
+                        <button id="documentsDeleteFolderBtn" class="delete-btn" type="button" style="display: none;">Supprimer dossier</button>
+                        <button id="documentsRenameFolderBtn" class="secondary-btn" type="button" style="display: none;">Renommer</button>
+                      </div>
+                    </div>
+
+                    <!-- Upload zone -->
+                    <div id="documentsUploadZone" class="documents-upload-zone" style="display: none;">
+                      <div class="documents-upload-box">
+                        <span class="material-symbols-outlined" style="font-size: 3rem; color: var(--muted);">cloud_upload</span>
+                        <p>Glissez-déposez vos fichiers ici</p>
+                        <p style="font-size: 0.85rem; color: var(--muted);">ou</p>
+                        <button id="documentsSelectFileBtn" class="secondary-btn" type="button" onclick="document.getElementById('documentsFileInput').click();">Choisir un fichier</button>
+                        <input id="documentsFileInput" type="file" multiple style="display: none;">
+                      </div>
+                    </div>
+
+                    <!-- Liste des fichiers -->
+                    <div id="documentsFilesList" class="documents-files-list"></div>
+                  </div>
+                </main>
+              </div>
+            </div>
+
+            <div id="adminAbsencePanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Absences &amp; remplacements</h3>
+                <p class="card-subtitle">Déclarez une absence et appliquez un remplaçant compatible en un clic.</p>
+                <form id="absenceForm" class="absence-form">
+                  <label for="absenceTeacherSelect">Professeur absent</label>
+                  <select id="absenceTeacherSelect" required></select>
+                  <label for="absenceStartDate">Du</label>
+                  <input id="absenceStartDate" type="date" required />
+                  <label for="absenceEndDate">Au</label>
+                  <input id="absenceEndDate" type="date" required />
+                  <label for="absenceReason">Motif (optionnel)</label>
+                  <input id="absenceReason" type="text" placeholder="Ex: formation, maladie" />
+                  <button id="absenceSubmitBtn" type="submit">Enregistrer l'absence</button>
+                </form>
+                <div id="absenceHint" class="summary-box"></div>
+                <div id="absenceListContainer" class="table-wrap"></div>
+                <div id="absenceDetailsContainer" class="table-wrap"></div>
+                <div id="replacementPlansContainer" class="table-wrap"></div>
+                <div class="replacement-mail-panel">
+                  <h4>Email des remplacements validés</h4>
+                  <p class="summary-box">Prépare un message formaté (tableau couleur) pour Mme La Rosa.</p>
+                  <div class="replacement-mail-controls">
+                    <label for="replacementEmailTo">Destinataire (Mme La Rosa)</label>
+                    <input id="replacementEmailTo" type="email" placeholder="mme.larosa@etablissement.fr" />
+                    <div class="replacement-mail-actions">
+                      <button id="replacementComposeMailBtn" type="button">Ouvrir email</button>
+                      <button id="replacementCopyMailHtmlBtn" class="secondary-btn" type="button">Copier le tableau HTML</button>
+                    </div>
+                  </div>
+                  <div id="replacementMailPreview" class="summary-box">Aucun remplacement validé.</div>
+                  <div id="replacementMailHtmlPreview" class="replacement-mail-html-preview"></div>
+                </div>
+                <div id="absenceOffersContainer" class="table-wrap"></div>
+              </div>
+            </div>
+
+            <div id="adminEmailTemplatesPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Templates d'email</h3>
+                <p class="card-subtitle">Personnalisez les templates d'email envoyés automatiquement.</p>
+
+                <div style="margin-bottom: 1rem;">
+                  <label for="emailTemplateSelect">Sélectionner un template :</label>
+                  <select id="emailTemplateSelect">
+                    <option value="taskAssigned">📋 Nouvelle tâche assignée</option>
+                    <option value="taskStatusChange">📊 Changement de statut</option>
+                    <option value="commentNotification">💬 Nouveau commentaire</option>
+                    <option value="replacementNotification">🎯 Opportunité de remplacement</option>
+                    <option value="edtInvitation">📅 Invitation à consulter l'EDT</option>
+                  </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <!-- Éditeur de code -->
+                  <div>
+                    <h4>Code du template</h4>
+                    <textarea id="emailTemplateCode" style="width: 100%; height: 400px; font-family: monospace; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 10px;"></textarea>
+                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                      <button id="emailTemplateSaveBtn" class="primary-btn" type="button">💾 Sauvegarder</button>
+                      <button id="emailTemplateResetBtn" class="secondary-btn" type="button">↺ Réinitialiser</button>
+                    </div>
+                  </div>
+
+                  <!-- Aperçu -->
+                  <div>
+                    <h4>Aperçu</h4>
+                    <div id="emailTemplatePreview" style="width: 100%; height: 400px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: white; padding: 10px;"></div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--surface-soft); border-radius: 4px;">
+                  <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+                    <strong>Variables disponibles :</strong><br>
+                    <code>${'{'}name{'}'}</code> - Nom du prof<br>
+                    <code>${'{'}title{'}'}</code> - Titre de la tâche<br>
+                    <code>${'{'}schoolYear{'}'}</code> - Année scolaire<br>
+                    <code>${'{'}date{'}'}</code> - Date<br>
+                    <code>${'{'}status{'}'}</code> - Statut<br>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div id="adminSchoolYearPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Année scolaire</h3>
+                <p class="card-subtitle">Configurez les dates de l'année en cours, les vacances et les jours fériés.</p>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Année active</h4>
+                  </div>
+                  <div class="schoolyear-grid">
+                    <div class="control-group">
+                      <label for="schoolYearScopeSelect">Année active</label>
+                      <select id="schoolYearScopeSelect"></select>
+                    </div>
+                  </div>
+                </div>
+                <div class="schoolyear-grid">
+                  <div class="control-group">
+                    <label for="schoolYearStartDate">Début année scolaire</label>
+                    <input id="schoolYearStartDate" type="date" />
+                  </div>
+                  <div class="control-group">
+                    <label for="schoolYearEndDate">Fin année scolaire</label>
+                    <input id="schoolYearEndDate" type="date" />
+                  </div>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Vacances</h4>
+                    <button id="schoolYearAddVacationBtn" class="secondary-btn" type="button">Ajouter période</button>
+                  </div>
+                  <div id="schoolYearVacationsContainer" class="schoolyear-list"></div>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Jours fériés</h4>
+                    <button id="schoolYearAddHolidayBtn" class="secondary-btn" type="button">Ajouter jour férié</button>
+                  </div>
+                  <div id="schoolYearHolidaysContainer" class="schoolyear-list"></div>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Semaines A/B</h4>
+                  </div>
+                  <p class="summary-box">Après avoir défini le début et la fin, choisissez pour chaque semaine si elle est en A ou en B.</p>
+                  <div id="schoolYearWeeksContainer" class="table-wrap"></div>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Enseignants actifs sur cette année</h4>
+                  </div>
+                  <p class="summary-box">Coche les professeurs à utiliser pour l'année scolaire sélectionnée.</p>
+                  <div id="schoolYearTeachersContainer" class="table-wrap"></div>
+                </div>
+                <div class="schoolyear-actions">
+                  <button id="schoolYearSaveBtn" type="button">Enregistrer année scolaire</button>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Publication de l'EDT</h4>
+                  </div>
+                  <p class="summary-box">L'EDT sera visible publiquement uniquement si elle est publiée.</p>
+                  <label class="check-row">
+                    <input id="schoolYearIsPublishedCheck" type="checkbox" />
+                    <span>📢 Publier l'EDT (rendre visible au public)</span>
+                  </label>
+                  <div class="schoolyear-actions">
+                    <button id="schoolYearPublishBtn" class="secondary-btn" type="button">✓ Appliquer publication</button>
+                  </div>
+                </div>
+                <div class="schoolyear-section">
+                  <div class="schoolyear-section-head">
+                    <h4>Désidératas (activation)</h4>
+                  </div>
+                  <div class="schoolyear-grid">
+                    <div class="control-group">
+                      <label for="desiderataConfigYearSelect">Année des désidératas</label>
+                      <select id="desiderataConfigYearSelect"></select>
+                    </div>
+                    <div class="control-group">
+                      <label for="desiderataConfigEnabled">Activation</label>
+                      <select id="desiderataConfigEnabled">
+                        <option value="0">Désactivé</option>
+                        <option value="1">Activé</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="schoolyear-actions">
+                    <button id="desiderataConfigSaveBtn" class="secondary-btn" type="button">Enregistrer activation désidératas</button>
+                  </div>
+                </div>
+                <p id="schoolYearHint" class="summary-box"></p>
+              </div>
+            </div>
+
+            <div id="adminSwimPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Repère natation</h3>
+                <p id="swimHint" class="summary-box"></p>
+                <div id="swimPlannerContainer" class="table-wrap"></div>
+              </div>
+            </div>
+
+            <div id="adminRecapPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Récapitulatif heures professeurs</h3>
+                <div id="adminRecapContainer" class="table-wrap"></div>
+              </div>
+            </div>
+
+            <div id="adminRightsPanel" class="admin-panel hidden">
+              <div class="card">
+                <h3>Gestion des Droits d'Accès</h3>
+                <p class="card-subtitle">Définissez qui peut voir ou modifier chaque module de l'espace administrateur.</p>
+                <div id="adminRightsContainer" class="table-wrap"></div>
+              </div>
+            </div>
+      </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="assignModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3 id="assignModalTitle">Affectation</h3>
+        <p id="assignModalContext" class="card-subtitle"></p>
+        <div id="assignModalTeacherRow">
+          <label for="assignModalTeacherSelect">Enseignant</label>
+          <select id="assignModalTeacherSelect"></select>
+        </div>
+        <label for="assignModalLevelSelect">Niveau</label>
+        <select id="assignModalLevelSelect"></select>
+        <label for="assignModalClassSelect">Classe / AS / Danse</label>
+        <select id="assignModalClassSelect"></select>
+        <label for="assignModalCadenceSelect">Cadence</label>
+        <select id="assignModalCadenceSelect">
+          <option value="WEEKLY">Toutes les semaines</option>
+          <option value="WEEK_A">Semaine A</option>
+          <option value="WEEK_B">Semaine B</option>
+        </select>
+        <div id="assignModalHint" class="summary-box"></div>
+        <div class="modal-actions">
+          <button id="assignModalCancelBtn" class="secondary-btn" type="button">Annuler</button>
+          <button id="assignModalConfirmBtn" type="button">Affecter</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="programRoomsModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3 id="programRoomsModalTitle">Salles disponibles</h3>
+        <p id="programRoomsModalContext" class="card-subtitle"></p>
+        <div id="programRoomsModalBody" class="summary-box"></div>
+        <div class="modal-actions">
+          <button id="programRoomsModalCloseBtn" class="secondary-btn" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="programPickModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3 id="programPickModalTitle">Choisir</h3>
+        <p id="programPickModalContext" class="card-subtitle"></p>
+        <div id="programPickModalList" class="program-pick-list"></div>
+        <div class="modal-actions">
+          <button id="programPickModalCloseBtn" class="secondary-btn" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="publicReplacementModal" class="modal-overlay hidden">
+      <div class="modal-card replacement-modal-card">
+        <h3>Mes opportunités de remplacement</h3>
+        <p id="publicReplacementModalContext" class="card-subtitle"></p>
+        <div id="publicReplacementModalBody" class="table-wrap"></div>
+        <div class="modal-actions">
+          <button id="publicReplacementModalCloseBtn" class="secondary-btn" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulle Flottante des Classes (Placée ici pour être toujours au-dessus) -->
+    <div id="floatingAssignContainer" class="floating-assign-container collapsed hidden">
+      <button id="floatingAssignToggle" class="floating-bubble" type="button" title="Classes à placer">
+        <span class="material-symbols-outlined">inventory_2</span>
+        <span id="floatingAssignBadge" class="bubble-badge">0</span>
+      </button>
+      <div class="floating-assign-content">
+        <div class="floating-header">
+          <h3>Classes à placer</h3>
+          <button id="closeFloatingBtn" class="close-mini-btn">&times;</button>
+        </div>
+        <div id="assignClassesToPlace" class="assign-draggable-list"></div>
+      </div>
+    </div>
+
+    <!-- Modale de sélection rapide du professeur -->
+    <div id="quickTeacherPicker" class="modal-overlay hidden">
+      <div class="modal-card quick-teacher-modal-card">
+        <div class="modal-header">
+          <h3 id="quickTeacherPickerTitle">Attribuer la classe</h3>
+          <button id="quickTeacherPickerClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="summary-box">Cliquez sur un professeur pour lui affecter cette classe.</p>
+          <div id="teacherPickerGrid" class="teacher-picker-grid"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="quickTeacherPickerCancel" class="secondary-btn" type="button">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cadenceChoiceModal" class="modal-overlay hidden">
+      <div class="modal-card cadence-choice-modal-card">
+        <div class="modal-header">
+          <h3 id="cadenceChoiceModalTitle">Choisir la cadence</h3>
+        </div>
+        <div class="modal-body">
+          <p id="cadenceChoiceModalText" class="card-subtitle"></p>
+          <div id="cadenceChoiceModalOptions" class="cadence-choice-options"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="cadenceChoiceModalCancelBtn" class="secondary-btn" type="button">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de création/modification de tâche -->
+    <div id="tasksEditModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3 id="tasksEditModalTitle">Nouvelle tâche</h3>
+          <button id="tasksEditModalClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="tasksEditForm">
+            <div class="control-group">
+              <label for="tasksEditTitle">Titre *</label>
+              <input id="tasksEditTitle" type="text" required placeholder="Ex: Mettre à jour les horaires" />
+            </div>
+
+            <div class="control-group">
+              <label for="tasksEditDescription">Description</label>
+              <textarea id="tasksEditDescription" rows="3" placeholder="Détails de la tâche..."></textarea>
+            </div>
+
+            <div class="inline-form-row">
+              <div class="control-group">
+                <label for="tasksEditPriority">Priorité</label>
+                <select id="tasksEditPriority">
+                  <option value="BASSE">Basse</option>
+                  <option value="NORMALE" selected>Normale</option>
+                  <option value="HAUTE">Haute</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label for="tasksEditCategory">Catégorie</label>
+                <select id="tasksEditCategory">
+                  <option value="REUNION">Réunion</option>
+                  <option value="FORMATION">Formation</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="URGENT">Urgent</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label for="tasksEditDueDate">Date limite</label>
+                <input id="tasksEditDueDate" type="date" />
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label for="tasksEditAssignedTeachers">Assigné à (profs)</label>
+              <select id="tasksEditAssignedTeachers" multiple size="5"></select>
+              <p class="field-hint">Ctrl+Clic pour sélectionner plusieurs</p>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="tasksEditDeleteBtn" class="delete-btn hidden">Supprimer</button>
+              <div>
+                <button type="button" id="tasksEditCancelBtn" class="secondary-btn">Annuler</button>
+                <button type="submit" id="tasksEditSaveBtn">Enregistrer</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de détails de tâche (pour les profs) -->
+    <div id="tasksDetailsModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 650px; max-height: 85vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h3 id="tasksDetailsTitle">Détails de la tâche</h3>
+          <button id="tasksDetailsModalClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="tasksDetailsContent" class="task-details-content"></div>
+
+          <!-- Étapes/Sous-tâches -->
+          <div id="tasksStepsSection" class="tasks-steps-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+            <h4>Étapes</h4>
+            <div id="tasksStepsList" style="margin-bottom: 1rem;"></div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+              <input id="tasksNewStepInput" type="text" placeholder="Ajouter une étape..." style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+              <button id="tasksAddStepBtn" class="secondary-btn" type="button" style="white-space: nowrap;">➕ Ajouter</button>
+            </div>
+          </div>
+
+          <!-- Commentaires et progression -->
+          <div id="tasksCommentsSection" class="tasks-comments-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+            <h4>Progression & Commentaires</h4>
+
+            <!-- Boutons de statut rapides -->
+            <div class="tasks-status-buttons" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+              <button type="button" id="tasksMarkInProgressBtn" class="secondary-btn" style="flex: 1;">Marquer en cours</button>
+              <button type="button" id="tasksMarkDoneBtn" class="secondary-btn" style="flex: 1;">Marquer terminée</button>
+            </div>
+
+            <!-- Liste des commentaires -->
+            <div id="tasksCommentsList" class="tasks-comments-list" style="max-height: 250px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem;"></div>
+
+            <!-- Formulaire d'ajout de commentaire -->
+            <div class="tasks-comment-form">
+              <textarea id="tasksCommentInput" placeholder="Ajouter un commentaire..." style="width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 4px; resize: vertical; min-height: 60px;"></textarea>
+              <button type="button" id="tasksAddCommentBtn" class="secondary-btn" style="margin-top: 0.5rem; width: 100%;">Ajouter commentaire</button>
+            </div>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 1rem;">
+            <button type="button" id="tasksDetailsEditBtn" class="secondary-btn hidden">Modifier</button>
+            <button type="button" id="tasksDetailsMarkDoneBtn" class="secondary-btn hidden">Marquer comme terminée</button>
+            <button type="button" id="tasksDetailsCloseBtn" class="secondary-btn">Fermer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de notification de tâche assignée -->
+    <div id="tasksNotificationModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+          <h3>📋 Nouvelle tâche assignée</h3>
+        </div>
+        <div class="modal-body">
+          <div id="tasksNotificationContent"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="tasksNotificationCloseBtn" class="secondary-btn">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de "Mes tâches" pour les profs -->
+    <div id="tasksMyTasksModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 700px;">
+        <div class="modal-header">
+          <h3>Mes tâches</h3>
+          <button id="tasksMyTasksModalClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="tasksMyTasksContent"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="tasksMyTasksCloseBtn" class="secondary-btn">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal aperçu document -->
+    <div id="documentsPreviewModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 800px; max-height: 85vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h3 id="documentsPreviewTitle">Aperçu</h3>
+          <button id="documentsPreviewModalClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="documentsPreviewContent" style="display: flex; justify-content: center; align-items: center; min-height: 300px;"></div>
+          <div class="modal-actions" style="margin-top: 1rem;">
+            <a id="documentsPreviewDownloadBtn" class="secondary-btn" type="button" download>Télécharger</a>
+            <button type="button" id="documentsPreviewCloseBtn" class="secondary-btn">Fermer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal renommer dossier -->
+    <div id="documentsRenameFolderModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+          <h3>Renommer le dossier</h3>
+        </div>
+        <div class="modal-body">
+          <label for="documentsRenameFolderInput">Nouveau nom</label>
+          <input id="documentsRenameFolderInput" type="text" placeholder="Nom du dossier..." />
+          <div class="modal-actions">
+            <button type="button" id="documentsRenameFolderCancelBtn" class="secondary-btn">Annuler</button>
+            <button type="button" id="documentsRenameFolderSaveBtn">Renommer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal des préférences de notification -->
+    <div id="notificationPreferencesModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3>⚙️ Préférences de notifications par email</h3>
+          <button id="notificationPreferencesClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+            <div style="padding: 1rem; background: var(--surface-soft); border-radius: 6px;">
+              <label style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin: 0;">
+                <input id="notifTaskAssigned" type="checkbox" style="width: 18px; height: 18px;">
+                <span>
+                  <strong>Nouvelle tâche assignée</strong>
+                  <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--muted);">Recevez un email quand une tâche vous est assignée</p>
+                </span>
+              </label>
+            </div>
+
+            <div style="padding: 1rem; background: var(--surface-soft); border-radius: 6px;">
+              <label style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin: 0;">
+                <input id="notifTaskStatusChange" type="checkbox" style="width: 18px; height: 18px;">
+                <span>
+                  <strong>Changement de statut</strong>
+                  <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--muted);">Recevez un email quand le statut change</p>
+                </span>
+              </label>
+            </div>
+
+            <div style="padding: 1rem; background: var(--surface-soft); border-radius: 6px;">
+              <label style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin: 0;">
+                <input id="notifComments" type="checkbox" style="width: 18px; height: 18px;">
+                <span>
+                  <strong>Nouveaux commentaires</strong>
+                  <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--muted);">Recevez un email quand quelqu'un commente</p>
+                </span>
+              </label>
+            </div>
+
+            <div style="padding: 1rem; background: var(--surface-soft); border-radius: 6px;">
+              <label style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin: 0;">
+                <input id="notifDeadlineReminder" type="checkbox" style="width: 18px; height: 18px;">
+                <span>
+                  <strong>Rappels de date limite</strong>
+                  <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--muted);">Recevez un email si une tâche est due demain</p>
+                </span>
+              </label>
+            </div>
+
+            <div style="padding: 1rem; background: var(--surface-soft); border-radius: 6px;">
+              <label style="display: flex; align-items: center; gap: 0.8rem; cursor: pointer; margin: 0;">
+                <input id="notifReplacements" type="checkbox" style="width: 18px; height: 18px;">
+                <span>
+                  <strong>Opportunités de remplacement</strong>
+                  <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--muted);">Recevez un email quand un remplacement est disponible</p>
+                </span>
+              </label>
+            </div>
+
+            <div style="padding: 1rem; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ff6b6b;">
+              <p style="margin: 0; font-size: 0.9rem;"><strong>📧 Email :</strong> <span id="userEmailDisplay"></span></p>
+            </div>
+
+          </div>
+
+          <div class="modal-actions" style="margin-top: 1rem;">
+            <button type="button" id="notificationTestEmailBtn" class="secondary-btn">Envoyer un email de test</button>
+            <button type="button" id="notificationSaveBtn">Sauvegarder</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Répartition Rapide -->
+    <div id="repartitionPopupModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 98vw; max-height: 95vh; width: 98vw; height: 95vh;">
+        <div class="modal-header">
+          <h3>📊 Répartition - Accès Rapide</h3>
+          <button id="repartitionPopupClose" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: calc(95vh - 80px); overflow: auto;">
+          <div id="repartitionPopupContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de connexion -->
+    <div id="loginModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+          <h2>Connexion</h2>
+        </div>
+        <div class="modal-body">
+          <form id="loginForm" class="standard-form">
+            <label for="loginEmail">Adresse e-mail</label>
+            <input type="email" id="loginEmail" required placeholder="nom@exemple.fr" />
+            
+            <label for="loginPassword">Mot de passe</label>
+            <input type="password" id="loginPassword" required />
+            
+            <p id="loginError" class="error-text"></p>
+            <p id="loginMessage" class="success-text"></p>
+            
+            <div style="margin-bottom: 1rem;">
+              <button type="button" id="forgotPasswordBtn" class="link-btn" style="background: none; border: none; color: var(--primary); cursor: pointer; padding: 0; font-size: 0.9rem; font-weight: 600; text-decoration: underline;">Mot de passe oublié ?</button>
+            </div>
+            
+            <div class="modal-actions">
+              <button type="submit" class="primary-btn">Se connecter</button>
+              <button type="button" id="closeLoginBtn" class="secondary-btn">Annuler</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminSidebarOverlay" class="admin-sidebar-overlay"></div>
+
+    <div id="schoolYearSelectorModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+          <h3>Changer l'année scolaire</h3>
+          <button id="schoolYearSelectorCloseBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="schoolYearSelectorList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
