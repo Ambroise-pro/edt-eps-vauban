@@ -1,3 +1,35 @@
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(err => {
+    console.log('SW registration failed:', err);
+  });
+}
+
+// Install PWA
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const installBtn = document.getElementById('pwaInstallBtn');
+  if (installBtn) {
+    installBtn.style.display = 'block';
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('App installed successfully');
+  deferredPrompt = null;
+});
+
 import { ui } from './dom.js';
 import { state } from './state.js';
 import { subscribeData } from './db.js';
