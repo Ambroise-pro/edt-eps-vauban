@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .bg { fill: #002b5b; }
+      .text { fill: white; font-family: Arial, sans-serif; font-weight: bold; font-size: 67px; text-anchor: middle; dominant-baseline: central; }
+    </style>
+  </defs>
+  <rect width="192" height="192" class="bg"/>
+  <text x="96" y="96" class="text">EPS</text>
+</svg>

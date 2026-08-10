@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['logo.png', 'favicon.ico'],
+      includeAssets: ['logo.png', 'favicon.ico', 'icon-192x192.svg', 'icon-512x512.svg', 'icon-192x192-maskable.svg', 'icon-512x512-maskable.svg'],
       strategies: 'generateSW',
       filename: 'sw.js',
       manifest: {
@@ -21,22 +21,11 @@ export default defineConfig({
         start_url: '/?utm_source=pwa',
         categories: ['education', 'productivity'],
         prefer_related_applications: false,
-        screenshots: [
-          { src: 'logo.png', sizes: '540x720', type: 'image/png', form_factor: 'narrow' },
-          { src: 'logo.png', sizes: '1024x600', type: 'image/png', form_factor: 'wide' },
-        ],
         icons: [
-          { src: 'logo.png', sizes: '64x64', type: 'image/png' },
-          { src: 'logo.png', sizes: '96x96', type: 'image/png' },
-          { src: 'logo.png', sizes: '128x128', type: 'image/png' },
-          { src: 'logo.png', sizes: '192x192', type: 'image/png' },
-          { src: 'logo.png', sizes: '256x256', type: 'image/png' },
-          { src: 'logo.png', sizes: '384x384', type: 'image/png' },
-          { src: 'logo.png', sizes: '512x512', type: 'image/png' },
-          { src: 'logo.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'logo.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-          { src: 'logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-192x192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-512x512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192x192-maskable.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'icon-512x512-maskable.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
         ],
         shortcuts: [
           {
