@@ -18,11 +18,24 @@ export function initPWAUpdateHandler() {
       }
     });
 
+    // Ajouter le click listener une seule fois
+    updateBtn.addEventListener('click', () => {
+      if (waitingServiceWorker) {
+        // Envoyer un message au service worker pour qu'il se mette à jour
+        waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+
+        // Le controllerchange event se déclenchera et reloadera la page
+        updateBtn.innerHTML = '<span class="material-symbols-outlined">refresh</span><span>⏳ Actualisation...</span>';
+        updateBtn.disabled = true;
+      }
+    });
+
     navigator.serviceWorker.ready.then((registration) => {
       // Vérifier s'il y a une mise à jour en attente
       if (registration.waiting) {
-        showUpdateButton(registration.waiting);
+        console.log('📦 Mise à jour en attente détectée');
         waitingServiceWorker = registration.waiting;
+        updateBtn.classList.remove('hidden');
       }
 
       // Écouter les nouvelles mises à jour
@@ -31,24 +44,12 @@ export function initPWAUpdateHandler() {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             // Une nouvelle version est prête (il y a déjà une version active)
-            showUpdateButton(newWorker);
+            console.log('✨ Nouvelle mise à jour détectée');
             waitingServiceWorker = newWorker;
+            updateBtn.classList.remove('hidden');
           }
         });
       });
-    });
-  }
-
-  function showUpdateButton(worker) {
-    updateBtn.classList.remove('hidden');
-
-    updateBtn.addEventListener('click', () => {
-      // Envoyer un message au service worker pour qu'il se mette à jour
-      worker.postMessage({ type: 'SKIP_WAITING' });
-
-      // Le controllerchange event se déclenchera et reloadera la page
-      updateBtn.textContent = '⏳ Actualisation...';
-      updateBtn.disabled = true;
     });
   }
 }
