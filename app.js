@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { initPWAUpdateHandler } from './src/pwa-update.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyChbqOpu-VoGGkmjYptCl0usloYQ1FtSVM",
@@ -15354,6 +15355,7 @@ function init() {
   applyClassRule();
   if (!ensureRuntimeEnvironment()) return;
   subscribeData();
+  initPWAUpdateHandler();
 }
 
 window.setCreationSubTab = setCreationSubTab;

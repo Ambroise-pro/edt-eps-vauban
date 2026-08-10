@@ -7776,6 +7776,15 @@ button:hover {
   gap: 1rem;
 }
 
+.footer-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
 .footer-content p {
   margin: 0;
   color: var(--muted);
@@ -7797,6 +7806,59 @@ button:hover {
 .footer-links a:hover {
   color: var(--primary);
   text-decoration: underline;
+}
+
+.pwa-update-btn {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--secondary);
+  background: linear-gradient(135deg, #d8f3ee 0%, #c4ede5 100%);
+  color: var(--secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: auto;
+  box-shadow: 0 2px 4px rgba(0, 107, 95, 0.1);
+}
+
+.pwa-update-btn:hover {
+  background: linear-gradient(135deg, #c4ede5 0%, #a8e8dd 100%);
+  border-color: var(--secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 107, 95, 0.15);
+}
+
+.pwa-update-btn .material-symbols-outlined {
+  font-size: 1.2rem;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pwa-update-btn:not(.hidden) {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive Documents */
