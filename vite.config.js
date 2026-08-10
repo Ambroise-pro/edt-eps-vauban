@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['logo.png', 'favicon.ico', 'icon-192x192.svg', 'icon-512x512.svg', 'icon-192x192-maskable.svg', 'icon-512x512-maskable.svg'],
+      includeAssets: ['logo.png', 'favicon.ico', 'icon-192x192.png', 'icon-512x512.png', 'icon-192x192-maskable.png', 'icon-512x512-maskable.png'],
       strategies: 'generateSW',
       filename: 'sw.js',
       manifest: {
@@ -17,15 +17,16 @@ export default defineConfig({
         background_color: '#f2f8fc',
         display: 'standalone',
         orientation: 'portrait-primary',
+        lang: 'fr',
         scope: '/',
-        start_url: '/?utm_source=pwa',
+        start_url: '/',
         categories: ['education', 'productivity'],
         prefer_related_applications: false,
         icons: [
-          { src: 'icon-192x192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon-512x512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon-192x192-maskable.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'maskable' },
-          { src: 'icon-512x512-maskable.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-192x192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-512x512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         shortcuts: [
           {
