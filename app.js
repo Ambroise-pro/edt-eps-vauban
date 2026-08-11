@@ -6724,13 +6724,48 @@ async function reviewReplacementOffer(offerId, decision) {
           })
         )
       );
+
+      // Envoyer les notifications par email aux candidats
+      try {
+        const sendReplacementNotifications = firebase.functions().httpsCallable('sendReplacementNotifications');
+        await sendReplacementNotifications({
+          absenceId: offer.absenceId,
+          sessionId: offer.sessionId,
+          acceptedOfferId: offerId
+        });
+        console.log('📧 Notifications de remplacement envoyées');
+      } catch (emailError) {
+        console.error('Erreur envoi emails remplacement:', emailError);
+      }
+
       ui.absenceHint.textContent = "Candidature acceptée et remplacement planifié.";
       return;
     }
+    // Récupérer tous les candidats pour cette absence et session
+    const allOffers = state.replacementOffers.filter(
+      (o) => o.absenceId === offer.absenceId && o.sessionId === offer.sessionId
+    );
+
     await updateDoc(doc(db, "replacementOffers", offerId), {
       status: "REJECTED",
       updatedAt: serverTimestamp(),
     });
+
+    // Envoyer les notifications par email aux candidats
+    try {
+      const sendReplacementNotifications = firebase.functions().httpsCallable('sendReplacementNotifications');
+      // Trouver si une autre offre a été acceptée
+      const acceptedOffer = allOffers.find(o => o.id !== offerId && o.status === 'ACCEPTED');
+      await sendReplacementNotifications({
+        absenceId: offer.absenceId,
+        sessionId: offer.sessionId,
+        acceptedOfferId: acceptedOffer?.id || null
+      });
+      console.log('📧 Notifications de remplacement envoyées');
+    } catch (emailError) {
+      console.error('Erreur envoi emails remplacement:', emailError);
+    }
+
     ui.absenceHint.textContent = "Candidature rejetée.";
   } catch (error) {
     ui.absenceHint.textContent = `Erreur décision candidature: ${error?.message || "mise à jour impossible."}`;

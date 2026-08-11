@@ -573,3 +573,120 @@ exports.sendTestEmail = onCall(async (request) => {
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
+
+/**
+ * Cloud Function : Envoyer les notifications de remplacement aux candidats
+ */
+exports.sendReplacementNotifications = onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentification requise");
+  }
+
+  const { absenceId, sessionId, acceptedOfferId } = request.data;
+
+  if (!absenceId || !sessionId) {
+    throw new functions.https.HttpsError("invalid-argument", "absenceId et sessionId requis");
+  }
+
+  try {
+    // Récupérer les offres pour cette absence et session
+    const offersSnapshot = await db
+      .collection("replacementOffers")
+      .where("absenceId", "==", absenceId)
+      .where("sessionId", "==", sessionId)
+      .get();
+
+    const offers = offersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    if (!offers.length) {
+      console.log("Aucune offre de remplacement trouvée");
+      return { success: false, message: "Aucune offre trouvée" };
+    }
+
+    // Récupérer l'absence et la session pour les détails
+    const absenceDoc = await db.collection("absences").doc(absenceId).get();
+    const sessionDoc = await db.collection("sessions").doc(sessionId).get();
+    const absence = absenceDoc.data();
+    const session = sessionDoc.data();
+
+    // Envoyer un email à chaque candidat
+    const emailPromises = offers.map(async (offer) => {
+      const teacherDoc = await db.collection("teachers").doc(offer.candidateTeacherId).get();
+      const teacher = teacherDoc.data();
+
+      if (!teacher || !teacher.email) {
+        console.log(`Email manquant pour candidat ${offer.candidateTeacherId}`);
+        return;
+      }
+
+      const isAccepted = offer.id === acceptedOfferId;
+      const status = isAccepted ? "✅ ACCEPTÉE" : "❌ REJETÉE";
+      const statusColor = isAccepted ? "#127a44" : "#ba1a1a";
+
+      const htmlContent = `
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #002b5b; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h1>Notification de Remplacement</h1>
+              <p>Lycée Vauban - EDT EPS</p>
+            </div>
+
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h2>Décision sur votre candidature</h2>
+
+              <div style="background: ${statusColor}; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+                <h3 style="margin: 0;">${status}</h3>
+              </div>
+
+              <div style="background: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <p><strong>Période d'absence :</strong> ${absence?.startDate || "N/A"} au ${absence?.endDate || "N/A"}</p>
+                <p><strong>Créneau :</strong> ${session?.dayOfWeek || "N/A"} de ${session?.startTime || "N/A"} à ${session?.endTime || "N/A"}</p>
+                <p><strong>Niveau :</strong> ${session?.level || "N/A"}</p>
+                <p><strong>Lieu :</strong> ${session?.location || "N/A"}</p>
+              </div>
+
+              ${
+                isAccepted
+                  ? `
+                <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                  <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
+                </div>
+              `
+                  : `
+                <div style="background: #fff2f1; border-left: 4px solid #ba1a1a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                  <p style="margin: 0;">Malheureusement, votre candidature pour ce remplacement n'a pas été retenue. D'autres créneaux pourraient être disponibles ultérieurement.</p>
+                </div>
+              `
+              }
+
+              <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                Pour toute question, contactez l'administration.
+              </p>
+            </div>
+
+            <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p>EDT EPS Vauban © 2026</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await sendEmailWithBrevo(
+        teacher.email,
+        isAccepted
+          ? "✅ Votre candidature de remplacement a été acceptée"
+          : "❌ Votre candidature de remplacement",
+        htmlContent
+      );
+    });
+
+    await Promise.all(emailPromises);
+
+    return { success: true, message: `Notifications envoyées à ${offers.length} candidat(s)` };
+  } catch (error) {
+    console.error("Erreur sendReplacementNotifications:", error);
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
