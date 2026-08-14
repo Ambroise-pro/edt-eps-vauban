@@ -10128,12 +10128,20 @@ function renderPublicAbsenceRequests(week) {
     ui.publicOpenReplacementModalBtn.disabled = !canUse;
     ui.publicOpenReplacementModalBtn.title = canUse ? "Afficher mon EDT et mes opportunités" : "Connectez-vous en mode enseignant";
   }
-  const vacationDays = getVacationDaySetForWeek(week?.weekStart);
-  const weekSessions = state.sessions.filter((s) => isSessionVisibleForWeek(s, week.weekType) && !vacationDays.has(String(s.day || "")));
-  const absentEntries = weekSessions
+
+  // Collect all absences that have not yet ended and match any sessions
+  const absentEntries = state.sessions
     .map((session) => {
-      const absence = isSessionAbsentForWeek(session, week.weekStart);
+      // Check if this session has ANY active absence (not just for this week)
+      const absence = state.absences.find((a) =>
+        a.teacherId === session.teacherId &&
+        session.classId &&
+        !session.classId.startsWith('__') &&
+        new Date(a.startDate) <= new Date() &&
+        new Date(a.endDate) >= new Date()
+      );
       if (!absence) return null;
+
       const absentTeacher = state.teachers.find((t) => t.id === session.teacherId);
       const replacement = state.replacements.find((r) => r.absenceId === absence.id && r.sessionId === session.id);
       const replacementTeacher = state.teachers.find((t) => t.id === replacement?.toTeacherId);
@@ -10143,10 +10151,14 @@ function renderPublicAbsenceRequests(week) {
       return { session, absence, absentTeacher, replacementTeacher, offersCount: offers.length };
     })
     .filter(Boolean)
-    .sort((a, b) => DAYS.indexOf(a.session.day) - DAYS.indexOf(b.session.day) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr"));
+    .sort((a, b) => {
+      const dateCompare = new Date(a.absence.startDate) - new Date(b.absence.startDate);
+      if (dateCompare !== 0) return dateCompare;
+      return DAYS.indexOf(a.session.day) - DAYS.indexOf(b.session.day) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr");
+    });
 
   if (!absentEntries.length) {
-    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée sur cette semaine.</span>`;
+    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée.</span>`;
     ui.publicAbsenceRequestsContainer.innerHTML = `<p class="summary-box">Aucun créneau absent.</p>`;
     return;
   }
@@ -10191,7 +10203,7 @@ function renderPublicAbsenceRequests(week) {
     })
     .join("");
 
-  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence sur cette semaine.`;
+  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence.`;
   ui.publicAbsenceRequestsContainer.innerHTML = `
     <table class="absence-table public-absence-table">
       <thead>
