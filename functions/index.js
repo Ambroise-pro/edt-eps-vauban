@@ -609,6 +609,49 @@ exports.sendReplacementNotifications = onCall(async (request) => {
     const absence = absenceDoc.data();
     const session = sessionDoc.data();
 
+    // Fonction pour générer le format .ics (iCalendar)
+    const generateICalendar = (sessionData, absenceData) => {
+      if (!sessionData || !absenceData) return null;
+
+      const startDate = new Date(absenceData.startDate);
+      const dayIndex = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"].indexOf(sessionData.dayOfWeek);
+
+      // Calculer la date du cours (jour de la semaine dans la période d'absence)
+      const courseDate = new Date(startDate);
+      courseDate.setDate(courseDate.getDate() + dayIndex);
+
+      // Parser l'heure (format: "14:30")
+      const [hours, minutes] = (sessionData.startTime || "00:00").split(":");
+      const [endHours, endMinutes] = (sessionData.endTime || "00:00").split(":");
+
+      courseDate.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0);
+      const courseEnd = new Date(courseDate);
+      courseEnd.setHours(parseInt(endHours) || 0, parseInt(endMinutes) || 0, 0);
+
+      // Format iCalendar
+      const dtstart = courseDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const dtend = courseEnd.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+      return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//EDT EPS Vauban//NONSGML Event//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+DTSTART:${dtstart}
+DTEND:${dtend}
+DTSTAMP:${dtstamp}
+UID:replacement-${sessionData.id}-${absenceData.id}@edt-eps-vauban.fr
+CREATED:${dtstamp}
+SUMMARY:Cours de remplacement - ${sessionData.level || "N/A"}
+DESCRIPTION:Remplacement pour absence du ${absenceData.startDate} au ${absenceData.endDate}\\nLieu: ${sessionData.location || "N/A"}\\nNiveau: ${sessionData.level || "N/A"}
+LOCATION:${sessionData.location || "Lycée Vauban"}
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+END:VCALENDAR`;
+    };
+
     // Envoyer un email à chaque candidat
     const emailPromises = offers.map(async (offer) => {
       const teacherDoc = await db.collection("teachers").doc(offer.candidateTeacherId).get();
@@ -651,6 +694,13 @@ exports.sendReplacementNotifications = onCall(async (request) => {
                   ? `
                 <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
                   <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
+                  <p style="margin: 10px 0 0 0; font-size: 13px;">
+                    <a href="data:text/calendar;base64,${Buffer.from(generateICalendar(session, absence) || "").toString("base64")}"
+                       download="remplacement-cours.ics"
+                       style="color: #006b5f; text-decoration: underline; font-weight: bold;">
+                      📅 Ajouter à mon calendrier
+                    </a>
+                  </p>
                 </div>
               `
                   : `
