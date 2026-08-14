@@ -652,6 +652,17 @@ END:VEVENT
 END:VCALENDAR`;
     };
 
+    // Charger le template depuis Firestore
+    let templateHtml = null;
+    try {
+      const templateDoc = await db.collection("settings").doc("emailTemplates").collection("templates").doc("replacementDecision").get();
+      if (templateDoc.exists && templateDoc.data().html) {
+        templateHtml = templateDoc.data().html;
+      }
+    } catch (e) {
+      console.log("Template personnalisé non trouvé, utilisation du défaut");
+    }
+
     // Envoyer un email à chaque candidat
     const emailPromises = offers.map(async (offer) => {
       const teacherDoc = await db.collection("teachers").doc(offer.candidateTeacherId).get();
@@ -664,9 +675,8 @@ END:VCALENDAR`;
 
       const isAccepted = offer.id === acceptedOfferId;
       const status = isAccepted ? "✅ ACCEPTÉE" : "❌ REJETÉE";
-      const statusColor = isAccepted ? "#127a44" : "#ba1a1a";
 
-      const htmlContent = `
+      let htmlContent = templateHtml || `
         <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -678,37 +688,20 @@ END:VCALENDAR`;
             <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h2>Décision sur votre candidature</h2>
 
-              <div style="background: ${statusColor}; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
-                <h3 style="margin: 0;">${status}</h3>
+              <div style="background: #127a44; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+                <h3 style="margin: 0;">\${status}</h3>
               </div>
 
               <div style="background: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                <p><strong>Période d'absence :</strong> ${absence?.startDate || "N/A"} au ${absence?.endDate || "N/A"}</p>
-                <p><strong>Créneau :</strong> ${session?.dayOfWeek || "N/A"} de ${session?.startTime || "N/A"} à ${session?.endTime || "N/A"}</p>
-                <p><strong>Niveau :</strong> ${session?.level || "N/A"}</p>
-                <p><strong>Lieu :</strong> ${session?.location || "N/A"}</p>
+                <p><strong>Période d'absence :</strong> \${absenceStartDate} au \${absenceEndDate}</p>
+                <p><strong>Créneau :</strong> \${sessionDay} de \${sessionStart} à \${sessionEnd}</p>
+                <p><strong>Niveau :</strong> \${level}</p>
+                <p><strong>Lieu :</strong> \${location}</p>
               </div>
 
-              ${
-                isAccepted
-                  ? `
-                <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                  <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
-                  <p style="margin: 10px 0 0 0; font-size: 13px;">
-                    <a href="data:text/calendar;base64,${Buffer.from(generateICalendar(session, absence) || "").toString("base64")}"
-                       download="remplacement-cours.ics"
-                       style="color: #006b5f; text-decoration: underline; font-weight: bold;">
-                      📅 Ajouter à mon calendrier
-                    </a>
-                  </p>
-                </div>
-              `
-                  : `
-                <div style="background: #fff2f1; border-left: 4px solid #ba1a1a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                  <p style="margin: 0;">Malheureusement, votre candidature pour ce remplacement n'a pas été retenue. D'autres créneaux pourraient être disponibles ultérieurement.</p>
-                </div>
-              `
-              }
+              <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
+              </div>
 
               <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
                 Pour toute question, contactez l'administration.
@@ -722,6 +715,31 @@ END:VCALENDAR`;
         </body>
         </html>
       `;
+
+      // Remplacer les variables du template
+      htmlContent = htmlContent
+        .replace(/\$\{status\}/g, status)
+        .replace(/\$\{absenceStartDate\}/g, absence?.startDate || "N/A")
+        .replace(/\$\{absenceEndDate\}/g, absence?.endDate || "N/A")
+        .replace(/\$\{sessionDay\}/g, session?.dayOfWeek || "N/A")
+        .replace(/\$\{sessionStart\}/g, session?.startTime || "N/A")
+        .replace(/\$\{sessionEnd\}/g, session?.endTime || "N/A")
+        .replace(/\$\{level\}/g, session?.level || "N/A")
+        .replace(/\$\{location\}/g, session?.location || "N/A");
+
+      // Ajouter le lien de calendrier pour les acceptations
+      if (isAccepted) {
+        const icsContent = generateICalendar(session, absence) || "";
+        const icsBase64 = Buffer.from(icsContent).toString("base64");
+        const calendarLink = `<p style="margin: 10px 0 0 0; font-size: 13px;">
+          <a href="data:text/calendar;base64,${icsBase64}"
+             download="remplacement-cours.ics"
+             style="color: #006b5f; text-decoration: underline; font-weight: bold;">
+            📅 Ajouter à mon calendrier
+          </a>
+        </p>`;
+        htmlContent = htmlContent.replace(/<\/div>(?=\s*<p style="color: #6b7280)/, `${calendarLink}</div>`);
+      }
 
       await sendEmailWithBrevo(
         teacher.email,

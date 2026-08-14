@@ -16751,6 +16751,45 @@ const DEFAULT_EMAIL_TEMPLATES = {
       </div>
     </body></html>`
   },
+  replacementDecision: {
+    name: "Décision de remplacement",
+    subject: "\${status} Votre candidature de remplacement",
+    html: `<html><body style="font-family: Arial, sans-serif; color: #333;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #002b5b; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h1>Notification de Remplacement</h1>
+          <p>Lycée Vauban - EDT EPS</p>
+        </div>
+
+        <div style="background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
+          <h2>Décision sur votre candidature</h2>
+
+          <div style="background: #127a44; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+            <h3 style="margin: 0;">\${status}</h3>
+          </div>
+
+          <div style="background: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <p><strong>Période d'absence :</strong> \${absenceStartDate} au \${absenceEndDate}</p>
+            <p><strong>Créneau :</strong> \${sessionDay} de \${sessionStart} à \${sessionEnd}</p>
+            <p><strong>Niveau :</strong> \${level}</p>
+            <p><strong>Lieu :</strong> \${location}</p>
+          </div>
+
+          <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px;">
+            <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
+          </div>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            Pour toute question, contactez l'administration.
+          </p>
+        </div>
+
+        <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <p>EDT EPS Vauban © 2026</p>
+        </div>
+      </div>
+    </body></html>`
+  },
   edtInvitation: {
     name: "Invitation à consulter l'EDT",
     subject: "📅 Votre emploi du temps ${schoolYear} est disponible",
@@ -16835,12 +16874,23 @@ async function loadEmailTemplate() {
 function updateEmailTemplatePreview() {
   const code = ui.emailTemplateCode.value;
   if (ui.emailTemplatePreview) {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     ui.emailTemplatePreview.innerHTML = code
       .replace(/\$\{name\}/g, "Jean Dupont")
       .replace(/\$\{title\}/g, "Titre de l'exemple")
       .replace(/\$\{schoolYear\}/g, getActiveSchoolYearId())
-      .replace(/\$\{date\}/g, new Date().toLocaleDateString("fr-FR"))
-      .replace(/\$\{status\}/g, "En cours");
+      .replace(/\$\{date\}/g, today.toLocaleDateString("fr-FR"))
+      .replace(/\$\{status\}/g, "✅ ACCEPTÉE")
+      .replace(/\$\{absenceStartDate\}/g, today.toLocaleDateString("fr-FR"))
+      .replace(/\$\{absenceEndDate\}/g, tomorrow.toLocaleDateString("fr-FR"))
+      .replace(/\$\{sessionDay\}/g, "Lundi")
+      .replace(/\$\{sessionStart\}/g, "08:15")
+      .replace(/\$\{sessionEnd\}/g, "10:00")
+      .replace(/\$\{level\}/g, "Sixième")
+      .replace(/\$\{location\}/g, "Salle 301");
   }
 }
 
