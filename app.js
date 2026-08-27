@@ -8265,8 +8265,8 @@ function renderProgrammingPanel() {
   ui.programLocationsList.innerHTML = locationItems || `<p class="slot-picker-empty">Aucun lieu</p>`;
 
   renderProgramPeriodsPanel();
-  renderProgramClassPlans(activities);
-  renderProgramAnnualVisual(activities, locations);
+  renderProgramClassPlans(activities, visibleSessions);
+  renderProgramAnnualVisual(activities, locations, visibleSessions);
 
   bindProgrammingActions();
 }
@@ -8305,9 +8305,9 @@ function getProgramPlanLabelsByClassId(classId) {
   };
 }
 
-function renderProgramAnnualVisual(activities, locations) {
+function renderProgramAnnualVisual(activities, locations, filteredSessions = null) {
   if (!ui.programAnnualVisualContainer) return;
-  const sessions = [...getCurrentClassSessions()].sort((a, b) => {
+  const sessions = [...(filteredSessions || getCurrentClassSessions())].sort((a, b) => {
     const dayCmp = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
     if (dayCmp !== 0) return dayCmp;
     const slotCmp = String(a.start || "").localeCompare(String(b.start || ""), "fr");
