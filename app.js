@@ -8468,7 +8468,19 @@ function bindProgramAnnualVisualActions() {
   ui.programAnnualVisualContainer.querySelectorAll("[data-program-mode-select]").forEach((sel) => {
     const classId = String(sel.dataset.programModeSelect || "").trim();
     if (!classId) return;
-    sel.value = String(getClassActivityPlan(classId)?.modeOverride || "");
+    const plan = getClassActivityPlan(classId);
+    let defaultMode = "";
+    if (!plan?.modeOverride) {
+      // Set default based on class type
+      if (classId === "__AS__" || String(classId || "").startsWith("__AS")) {
+        defaultMode = "YEAR";
+      } else if (isClassBiweeklyProfile(classId)) {
+        defaultMode = "SEMESTER";
+      } else {
+        defaultMode = "TRIMESTER";
+      }
+    }
+    sel.value = String(plan?.modeOverride || defaultMode);
     sel.addEventListener("change", async () => {
       const modeOverride = sel.value || null;
       try {
