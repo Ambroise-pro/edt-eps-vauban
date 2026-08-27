@@ -8123,16 +8123,26 @@ function renderProgrammingPanel() {
     ui.programFilterTeacher.value = currentTeacherId;
   }
 
-  // Remplir le select des périodes
+  // Remplir le select des périodes (basé sur les classes biweekly vs full-year)
   if (ui.programFilterPeriod) {
     const currentPeriodId = ui.programFilterPeriod.value;
-    const periodIds = [...new Set(visibleSessions.map(s => s.periodId).filter(Boolean))];
+    const hasTrimesters = state.programPeriods?.t1Start && state.programPeriods?.t1End;
+    const hasSemesters = state.programPeriods?.s1Start && state.programPeriods?.s1End;
+
+    const periodOptions = [];
+    if (hasTrimesters) {
+      periodOptions.push(['T1', 'Trimestre 1']);
+      periodOptions.push(['T2', 'Trimestre 2']);
+      periodOptions.push(['T3', 'Trimestre 3']);
+    }
+    if (hasSemesters) {
+      periodOptions.push(['S1', 'Semestre 1']);
+      periodOptions.push(['S2', 'Semestre 2']);
+    }
+
     const options = '<option value="">Toutes les périodes</option>' +
-      periodIds
-        .map(pid => {
-          const period = state.periods.find(p => p.id === pid);
-          return `<option value="${pid}">${period?.name || pid}</option>`;
-        })
+      periodOptions
+        .map(([id, name]) => `<option value="${id}">${name}</option>`)
         .join('');
     ui.programFilterPeriod.innerHTML = options;
     ui.programFilterPeriod.value = currentPeriodId;
@@ -8146,7 +8156,17 @@ function renderProgrammingPanel() {
     visibleSessions = visibleSessions.filter(s => s.teacherId === selectedTeacher);
   }
   if (selectedPeriod) {
-    visibleSessions = visibleSessions.filter(s => s.periodId === selectedPeriod);
+    // Filtrer par type de période (Trimestre vs Semestre)
+    const isSemester = selectedPeriod.startsWith('S');
+    visibleSessions = visibleSessions.filter(s => {
+      if (isSemester) {
+        // Les semestres concernent les classes biweekly
+        return isClassBiweeklyProfile(s.classId);
+      } else {
+        // Les trimestres concernent les classes full-year
+        return !isClassBiweeklyProfile(s.classId);
+      }
+    });
   }
 
   // Ajouter les event listeners
