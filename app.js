@@ -1487,6 +1487,7 @@ function subscribeData() {
   onSnapshot(qProgramActivities, (snap) => {
     state.programActivities = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((x) => isDocInActiveSchoolYear(x))
       .filter((x) => x.label)
       .sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "fr"));
     render();
@@ -1495,6 +1496,7 @@ function subscribeData() {
   onSnapshot(qProgramLocations, (snap) => {
     state.programLocations = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((x) => isDocInActiveSchoolYear(x))
       .filter((x) => x.name)
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
     render();
