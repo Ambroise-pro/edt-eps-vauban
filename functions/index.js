@@ -18,6 +18,10 @@ const BREVO_SENDER_NAME = "EDT EPS Vauban";
  */
 async function sendEmailWithBrevo(to, subject, htmlContent) {
   try {
+    if (!BREVO_API_KEY) {
+      throw new Error("BREVO_API_KEY environment variable is not set");
+    }
+
     console.log(`Envoi email à ${to} avec clé API:`, BREVO_API_KEY.substring(0, 20) + "...");
 
     const response = await axios.post(
