@@ -1318,7 +1318,8 @@ function getCurrentUserRights() {
     repartition: "NONE",
     inventory: "NONE",
   };
-  return rights?.permissions || defaultRights;
+  if (!rights?.permissions) return defaultRights;
+  return { ...defaultRights, ...rights.permissions };
 }
 
 function buildConstraintsPicker() {
@@ -7884,9 +7885,25 @@ function renderRightsPanel() {
     btn.addEventListener("click", async () => {
       const teacherId = btn.dataset.saveRights;
       const permissions = {};
-      container.querySelectorAll(`select[data-rights-teacher="${cssEscape(teacherId)}"]`).forEach((sel) => {
-        permissions[sel.dataset.rightsModule] = sel.value;
-      });
+      // Use querySelectorAll with attribute value selector without escaping the value directly
+      // Instead, find the row and get all selects within it
+      const row = btn.closest("tr");
+      if (row) {
+        row.querySelectorAll("select[data-rights-module]").forEach((sel) => {
+          if (sel.dataset.rightsTeacher === teacherId) {
+            permissions[sel.dataset.rightsModule] = sel.value;
+          }
+        });
+      }
+
+      // If no selects found, fall back to checking all selects
+      if (Object.keys(permissions).length === 0) {
+        container.querySelectorAll("select[data-rights-module]").forEach((sel) => {
+          if (sel.dataset.rightsTeacher === teacherId) {
+            permissions[sel.dataset.rightsModule] = sel.value;
+          }
+        });
+      }
 
       try {
         await setDoc(doc(db, "userRights", teacherId), {
