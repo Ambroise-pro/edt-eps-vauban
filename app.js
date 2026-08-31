@@ -1318,8 +1318,13 @@ function getCurrentUserRights() {
     repartition: "NONE",
     inventory: "NONE",
   };
-  if (!rights?.permissions) return defaultRights;
-  return { ...defaultRights, ...rights.permissions };
+  if (!rights?.permissions) {
+    console.log("No rights found for user:", state.currentUserTeacherId, "Returning defaults");
+    return defaultRights;
+  }
+  const result = { ...defaultRights, ...rights.permissions };
+  console.log("Rights for user:", state.currentUserTeacherId, result);
+  return result;
 }
 
 function buildConstraintsPicker() {
@@ -1508,6 +1513,7 @@ function subscribeData() {
 
   onSnapshot(qUserRights, (snap) => {
     state.userRights = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    console.log("UserRights loaded:", state.userRights);
     render();
   });
 
@@ -7905,14 +7911,19 @@ function renderRightsPanel() {
         });
       }
 
+      console.log("Saving rights for teacher:", teacherId);
+      console.log("Permissions to save:", permissions);
+
       try {
         await setDoc(doc(db, "userRights", teacherId), {
           id: teacherId,
           permissions,
           updatedAt: serverTimestamp(),
         }, { merge: true });
+        console.log("Rights saved successfully");
         ui.sessionError.textContent = "Droits mis à jour.";
       } catch (error) {
+        console.error("Error saving rights:", error);
         ui.sessionError.textContent = "Erreur de sauvegarde : " + error.message;
       }
     });
