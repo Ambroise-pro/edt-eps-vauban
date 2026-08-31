@@ -1318,7 +1318,13 @@ function getCurrentUserRights() {
     repartition: "NONE",
     inventory: "NONE",
   };
-  return rights?.permissions || defaultRights;
+  if (!rights?.permissions) {
+    console.log("No rights found for user:", state.currentUserTeacherId, "Returning defaults");
+    return defaultRights;
+  }
+  const result = { ...defaultRights, ...rights.permissions };
+  console.log("Rights for user:", state.currentUserTeacherId, result);
+  return result;
 }
 
 function buildConstraintsPicker() {
@@ -1509,6 +1515,7 @@ function subscribeData() {
 
   onSnapshot(qUserRights, (snap) => {
     state.userRights = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    console.log("UserRights loaded:", state.userRights);
     render();
   });
 
@@ -7921,9 +7928,28 @@ function renderRightsPanel() {
     btn.addEventListener("click", async () => {
       const teacherId = btn.dataset.saveRights;
       const permissions = {};
-      container.querySelectorAll(`select[data-rights-teacher="${cssEscape(teacherId)}"]`).forEach((sel) => {
-        permissions[sel.dataset.rightsModule] = sel.value;
-      });
+      // Use querySelectorAll with attribute value selector without escaping the value directly
+      // Instead, find the row and get all selects within it
+      const row = btn.closest("tr");
+      if (row) {
+        row.querySelectorAll("select[data-rights-module]").forEach((sel) => {
+          if (sel.dataset.rightsTeacher === teacherId) {
+            permissions[sel.dataset.rightsModule] = sel.value;
+          }
+        });
+      }
+
+      // If no selects found, fall back to checking all selects
+      if (Object.keys(permissions).length === 0) {
+        container.querySelectorAll("select[data-rights-module]").forEach((sel) => {
+          if (sel.dataset.rightsTeacher === teacherId) {
+            permissions[sel.dataset.rightsModule] = sel.value;
+          }
+        });
+      }
+
+      console.log("Saving rights for teacher:", teacherId);
+      console.log("Permissions to save:", permissions);
 
       try {
         await setDoc(doc(db, "userRights", teacherId), {
@@ -7931,8 +7957,10 @@ function renderRightsPanel() {
           permissions,
           updatedAt: serverTimestamp(),
         }, { merge: true });
+        console.log("Rights saved successfully");
         ui.sessionError.textContent = "Droits mis à jour.";
       } catch (error) {
+        console.error("Error saving rights:", error);
         ui.sessionError.textContent = "Erreur de sauvegarde : " + error.message;
       }
     });
