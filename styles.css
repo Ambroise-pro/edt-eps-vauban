@@ -2296,6 +2296,13 @@ fieldset {
   padding: 0.2rem 0.28rem;
 }
 
+.program-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .program-annual-table {
   min-width: 1200px;
   border-collapse: collapse;
@@ -8036,5 +8043,139 @@ button:hover {
 
   .session-detail-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   Programmation — vue mobile
+   Le tableau annuel fait 10 colonnes (min-width 1200px) et n'est
+   pas exploitable sur téléphone : sous 760px il devient une liste
+   de cartes, chaque cellule affichant son en-tête via data-label.
+   ============================================================ */
+@media (max-width: 760px) {
+  .program-filters {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  /* Les sous-onglets défilent au lieu de se comprimer */
+  .program-subtabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .program-subtabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .program-subtabs button {
+    flex: 0 0 auto;
+  }
+
+  .program-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  /* Le conteneur ne défile plus horizontalement : la table tient dans la largeur */
+  #programAnnualVisualContainer.table-wrap {
+    overflow-x: visible;
+  }
+
+  .program-annual-table {
+    min-width: 0;
+    width: 100%;
+    display: block;
+    border-collapse: separate;
+  }
+
+  /* En-têtes remplacés par les data-label de chaque cellule */
+  .program-annual-table .annual-head,
+  .program-annual-table .annual-subhead {
+    display: none;
+  }
+
+  .program-annual-table tbody,
+  .program-annual-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .program-annual-table tr.annual-slot-row {
+    margin-bottom: 0.85rem;
+    border: 1px solid #d8e6f2;
+    border-left: 5px solid var(--annual-teacher-row-border, #9ec2de);
+    border-radius: 14px;
+    background: var(--annual-teacher-row-bg, #ffffff);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+  }
+
+  /* Le séparateur de groupe n'a plus de sens une fois les lignes séparées */
+  .program-annual-table tr.annual-slot-row.annual-slot-group-start td {
+    border-top: 1px solid #e8f1f8;
+  }
+
+  .program-annual-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    border-top: 1px solid #e8f1f8;
+    font-size: 0.82rem;
+    text-align: left;
+  }
+
+  .program-annual-table td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    color: #4a6b85;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* Première cellule : en-tête de carte, sans bordure ni fond hérités */
+  .program-annual-table tr.annual-slot-row td:first-child,
+  .program-annual-table tr.annual-teacher-row td:first-child {
+    border-top: 0;
+    border-left: 0;
+    background: rgba(255, 255, 255, 0.45);
+    white-space: normal;
+  }
+
+  /* Valeurs : occupent la place restante et restent tapables */
+  .program-annual-table td .annual-pick-btn,
+  .program-annual-table td .annual-readonly,
+  .program-annual-table td select {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 2rem;
+    font-size: 0.82rem;
+    text-align: left;
+  }
+
+  .program-annual-table td .annual-pick-btn {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Le select de mode reprend une apparence de champ dans la carte */
+  .annual-mode-cell {
+    padding: 0.45rem 0.7rem !important;
+  }
+
+  .program-annual-table td.annual-mode-cell select.annual-mode-select {
+    display: block;
+    width: auto;
+    padding: 0.3rem 0.45rem;
+    border: 1px solid #cfe0ee;
+    border-radius: 8px;
+    background: #ffffff;
   }
 }

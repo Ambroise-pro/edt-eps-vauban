@@ -8450,51 +8450,61 @@ function renderProgramAnnualVisual(activities, locations) {
     const planMode = getClassPlanMode(s.classId);
 
     const teacherColor = getTeacherColorById(s.teacherId);
+    // Les data-label portent l'en-tête de colonne sur chaque cellule : en mobile la
+    // table passe en cartes empilées et les en-têtes du tableau ne sont plus lisibles.
+    const periodLabel =
+      planMode === "YEAR"
+        ? { t1: "Année" }
+        : planMode === "SEMESTER"
+          ? { t1: "Semestre 1", t2: "Semestre 2" }
+          : { t1: "Trimestre 1", t2: "Trimestre 2", t3: "Trimestre 3" };
+    const cellLabel = (period, kind) =>
+      escapeHtml(`${periodLabel[period] || ""} · ${kind === "activity" ? "Activité" : "Lieu"}`);
     rows.push(`<tr class="annual-slot-row annual-teacher-row${slotStartClass}" style="--annual-teacher-row-bg:${escapeHtml(`${teacherColor}22`)};--annual-teacher-row-border:${escapeHtml(teacherColor)};">
-      <td>${escapeHtml(bandLabel)}</td>
-      <td>${escapeHtml(getClassLabelById(s.classId))}</td>
-      <td class="annual-prof-cell" style="${escapeHtml(getTeacherBlockStyle(s.teacherId))}">${escapeHtml(getTeacherDisplayLabel(teacher))}</td>
+      <td data-label="Horaire">${escapeHtml(bandLabel)}</td>
+      <td data-label="Classe">${escapeHtml(getClassLabelById(s.classId))}</td>
+      <td class="annual-prof-cell" data-label="Prof" style="${escapeHtml(getTeacherBlockStyle(s.teacherId))}">${escapeHtml(getTeacherDisplayLabel(teacher))}</td>
       ${
         planMode === "YEAR"
-          ? `<td class="annual-trim-sep" colspan="3">
+          ? `<td class="annual-trim-sep" colspan="3" data-label="${cellLabel("t1", "activity")}">
                ${pickCell("activity", "t1", t1Activity, t1ActivityMeta)}
              </td>
-             <td colspan="3">
+             <td colspan="3" data-label="${cellLabel("t1", "location")}">
                ${pickCell("location", "t1", t1Lieu, t1LocationMeta)}
              </td>`
           : planMode === "SEMESTER"
-            ? `<td class="annual-trim-sep" colspan="2">
+            ? `<td class="annual-trim-sep" colspan="2" data-label="${cellLabel("t1", "activity")}">
                  ${pickCell("activity", "t1", t1Activity, t1ActivityMeta)}
                </td>
-               <td>
+               <td data-label="${cellLabel("t1", "location")}">
                  ${pickCell("location", "t1", t1Lieu, t1LocationMeta)}
                </td>
-               <td class="annual-trim-sep" colspan="2">
+               <td class="annual-trim-sep" colspan="2" data-label="${cellLabel("t2", "activity")}">
                  ${pickCell("activity", "t2", t2Activity, t2ActivityMeta)}
                </td>
-               <td>
+               <td data-label="${cellLabel("t2", "location")}">
                  ${pickCell("location", "t2", t2Lieu, t2LocationMeta)}
                </td>`
-            : `<td class="annual-trim-sep">
+            : `<td class="annual-trim-sep" data-label="${cellLabel("t1", "activity")}">
                ${pickCell("activity", "t1", t1Activity, t1ActivityMeta)}
              </td>
-             <td>
+             <td data-label="${cellLabel("t1", "location")}">
                ${pickCell("location", "t1", t1Lieu, t1LocationMeta)}
              </td>
-             <td class="annual-trim-sep">
+             <td class="annual-trim-sep" data-label="${cellLabel("t2", "activity")}">
                ${pickCell("activity", "t2", t2Activity, t2ActivityMeta)}
              </td>
-             <td>
+             <td data-label="${cellLabel("t2", "location")}">
                ${pickCell("location", "t2", t2Lieu, t2LocationMeta)}
              </td>
-             <td class="annual-trim-sep">
+             <td class="annual-trim-sep" data-label="${cellLabel("t3", "activity")}">
                ${pickCell("activity", "t3", t3Activity, t3ActivityMeta)}
              </td>
-             <td>
+             <td data-label="${cellLabel("t3", "location")}">
                ${pickCell("location", "t3", t3Lieu, t3LocationMeta)}
              </td>`
       }
-      <td class="annual-mode-cell">
+      <td class="annual-mode-cell" data-label="Mode">
         <select class="annual-mode-select" data-program-mode-select="${escapeHtml(s.classId)}">
           <option value="">Auto</option>
           <option value="YEAR">Année</option>
