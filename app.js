@@ -5933,45 +5933,43 @@ async function commitAssignLetterDrafts() {
   }
 
   const errors = [];
-  const newNames = new Map();
+  const batch = db.batch();
+  let changed = 0;
 
-  // Build new class names from drafts
-  for (const cls of state.classes) {
-    if (drafts.hasOwnProperty(cls.id)) {
-      const newName = String(drafts[cls.id] || "").trim();
-      if (!newName) {
-        errors.push(`${cls.name}: nom invalide.`);
-        continue;
-      }
-      newNames.set(cls.id, newName);
-    } else {
-      newNames.set(cls.id, cls.name);
-    }
-  }
-
-  // Check for duplicates
-  const seen = new Map();
-  for (const [classId, name] of newNames.entries()) {
+  // Only validate and update classes that have changed
+  for (const [classId, newName] of Object.entries(drafts)) {
     const cls = state.classes.find((c) => c.id === classId);
     if (!cls) continue;
-    const key = `${String(cls.level || "")}__${String(name || "")}`;
-    if (seen.has(key)) {
-      errors.push(`Doublon: ${name} existe déjà à ce niveau.`);
+
+    const trimmedName = String(newName || "").trim();
+    if (!trimmedName) {
+      errors.push(`${cls.name}: nom invalide.`);
+      continue;
     }
-    seen.set(key, classId);
+
+    // Only update if the name actually changed
+    if (trimmedName === String(cls.name || "")) continue;
+
+    // Check for duplicates only with OTHER changed classes, not existing classes
+    const isDuplicate = Object.entries(drafts).some(([otherId, otherName]) => {
+      if (otherId === classId) return false;
+      const otherCls = state.classes.find((c) => c.id === otherId);
+      if (!otherCls) return false;
+      if (String(otherCls.level || "") !== String(cls.level || "")) return false;
+      return String(otherName || "").trim() === trimmedName;
+    });
+
+    if (isDuplicate) {
+      errors.push(`Doublon dans les changements: ${trimmedName}`);
+      continue;
+    }
+
+    batch.update(doc(db, "classes", cls.id), { name: trimmedName, updatedAt: serverTimestamp() });
+    changed += 1;
   }
 
   if (errors.length) {
     return { ok: false, error: `Validation impossible:\n- ${Array.from(new Set(errors)).join("\n- ")}` };
-  }
-
-  const batch = db.batch();
-  let changed = 0;
-  for (const cls of state.classes) {
-    const newName = newNames.get(cls.id);
-    if (newName === String(cls.name || "")) continue;
-    batch.update(doc(db, "classes", cls.id), { name: newName, updatedAt: serverTimestamp() });
-    changed += 1;
   }
 
   if (!changed) {
