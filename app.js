@@ -7904,7 +7904,39 @@ function renderRightsPanel() {
     `;
   });
 
+  // Diagnostic : une fiche de droits est enregistrée sous l'id d'un enseignant.
+  // Deux situations cassent la correspondance avec l'utilisateur connecté :
+  // des droits orphelins (id inconnu) ou un email partagé par plusieurs fiches.
+  const knownTeacherIds = new Set(state.allTeachers.map((t) => t.id));
+  const orphanRights = state.userRights.filter((r) => !knownTeacherIds.has(r.id));
+  const emailCounts = new Map();
+  for (const t of state.allTeachers) {
+    const mail = String(t.email || "").toLowerCase().trim();
+    if (!mail) continue;
+    emailCounts.set(mail, (emailCounts.get(mail) || 0) + 1);
+  }
+  const duplicatedEmails = Array.from(emailCounts.entries()).filter(([, n]) => n > 1);
+  const warnings = [];
+  if (orphanRights.length) {
+    warnings.push(
+      `${orphanRights.length} fiche(s) de droits ne correspondent à aucun enseignant : ` +
+        orphanRights.map((r) => escapeHtml(String(r.id))).join(", ")
+    );
+  }
+  if (duplicatedEmails.length) {
+    warnings.push(
+      "Email(s) partagé(s) par plusieurs fiches enseignant : " +
+        duplicatedEmails.map(([mail, n]) => `${escapeHtml(mail)} (${n} fiches)`).join(", ")
+    );
+  }
+  const diagnosticHtml = warnings.length
+    ? `<div class="summary-box hours-over"><strong>Anomalies de droits détectées :</strong><ul>${warnings
+        .map((w) => `<li>${w}</li>`)
+        .join("")}</ul></div>`
+    : "";
+
   container.innerHTML = `
+    ${diagnosticHtml}
     <div class="table-wrap">
       <table class="rights-table">
         <thead>
@@ -8555,21 +8587,15 @@ function getAnnualPlanDisplayValue(plan, classId, periodKey, kind, fallback = ""
   }
   if (mode === "SEMESTER") {
     if (periodKey === "t1") {
-      const val = String(plan[`s1${suffix}`] || plan[`t1${suffix}`] || fallback || "");
-      console.log(`getAnnualPlanDisplayValue SEMESTER t1: s1${suffix}=${plan[`s1${suffix}`]}, t1${suffix}=${plan[`t1${suffix}`]}, fallback=${fallback}, result=${val}`);
-      return val;
+      return String(plan[`s1${suffix}`] || plan[`t1${suffix}`] || fallback || "");
     }
     if (periodKey === "t2") {
-      const val = String(plan[`s2${suffix}`] || plan[`t2${suffix}`] || fallback || "");
-      console.log(`getAnnualPlanDisplayValue SEMESTER t2: s2${suffix}=${plan[`s2${suffix}`]}, t2${suffix}=${plan[`t2${suffix}`]}, fallback=${fallback}, result=${val}`);
-      return val;
+      return String(plan[`s2${suffix}`] || plan[`t2${suffix}`] || fallback || "");
     }
     return "";
   }
   if (periodKey === "t1" || periodKey === "t2" || periodKey === "t3") {
-    const val = String(plan[`${periodKey}${suffix}`] || fallback || "");
-    console.log(`getAnnualPlanDisplayValue TRIMESTER ${periodKey}: ${periodKey}${suffix}=${plan[`${periodKey}${suffix}`]}, fallback=${fallback}, result=${val}`);
-    return val;
+    return String(plan[`${periodKey}${suffix}`] || fallback || "");
   }
   return "";
 }
