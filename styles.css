@@ -3844,19 +3844,6 @@ body[data-assign-mode="reorganize"] .slot-action {
 .assign-sidebar {
   display: none;
 }
-...
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.6rem 0.8rem;
-  cursor: grab;
-  user-select: none;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
 
 .assign-class-pill:hover {
   border-color: var(--secondary);
