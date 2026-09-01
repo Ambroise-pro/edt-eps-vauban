@@ -888,6 +888,16 @@ function setupAuth() {
   });
 }
 
+// Plusieurs fiches peuvent partager le même email/token (une par année scolaire).
+// Les droits sont enregistrés sur la fiche de l'année active : on la privilégie ici
+// pour que l'id retenu corresponde à celui utilisé par le panneau des droits.
+function pickTeacherForCurrentYear(candidates) {
+  const list = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+  if (!list.length) return null;
+  const activeYear = getActiveSchoolYearId();
+  return list.find((t) => isTeacherActiveInYear(t, activeYear)) || list[0];
+}
+
 async function syncCurrentUserRoleFromTeachers() {
   const user = state.currentUser;
   const magicToken = sessionStorage.getItem("magicToken");
@@ -913,7 +923,9 @@ async function syncCurrentUserRoleFromTeachers() {
 
   if (user.isAnonymous) {
     if (magicToken) {
-      const teacher = state.allTeachers.find((t) => t.loginToken === magicToken);
+      const teacher = pickTeacherForCurrentYear(
+        state.allTeachers.filter((t) => t.loginToken === magicToken)
+      );
       if (teacher) {
         state.currentUserRole = "CUSTOM";
         state.currentUserTeacherId = teacher.id;
@@ -928,7 +940,9 @@ async function syncCurrentUserRoleFromTeachers() {
 
   const email = String(user.email || "").toLowerCase();
   const superAdminEmail = "ambroise.lepannerer@gmail.com";
-  const teacher = state.allTeachers.find((t) => String(t.email || "").toLowerCase() === email);
+  const teacher = pickTeacherForCurrentYear(
+    state.allTeachers.filter((t) => String(t.email || "").toLowerCase() === email)
+  );
   if (email === superAdminEmail) {
     state.currentUserRole = "SUPER_ADMIN";
     state.currentUserTeacherId = teacher ? teacher.id : "";
@@ -1318,7 +1332,14 @@ function getCurrentUserRights() {
     repartition: "NONE",
     inventory: "NONE",
   };
-  if (!rights?.permissions) return defaultRights;
+  if (!rights?.permissions) {
+    console.warn("[droits] Aucune fiche de droits trouvée pour l'utilisateur courant.", {
+      role: state.currentUserRole,
+      teacherId: state.currentUserTeacherId,
+      idsDisponibles: state.userRights.map((r) => r.id),
+    });
+    return defaultRights;
+  }
   return { ...defaultRights, ...rights.permissions };
 }
 
@@ -6058,7 +6079,6 @@ function enforcePermissions() {
   if (state.currentUserRole === "SUPER_ADMIN") return;
 
   const rights = getCurrentUserRights();
-  console.log("Enforcing permissions for user:", state.currentUserTeacherId, "Rights:", rights);
   const map = [
     { panel: ui.adminCreationPanel, button: ui.adminTabCreationBtn, key: "creation" },
     { panel: ui.adminAssignPanel, button: ui.adminTabAssignBtn, key: "assign" },
@@ -6089,11 +6109,9 @@ function enforcePermissions() {
     }
 
     // Cacher le panel si pas d'accès du tout
+    // (la visibilité d'un panel autorisé reste gérée par setAdminTab)
     if (!hasAccess) {
       panel.classList.add("hidden");
-    } else {
-      // Montrer le panel s'il a accès
-      panel.classList.remove("hidden");
     }
 
     // Désactiver les contrôles si pas de droit MODIFY
