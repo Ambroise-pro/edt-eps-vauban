@@ -6054,7 +6054,11 @@ function resolveClassIdFromAssignPayload(payload, teacherId, day, slot, weekType
 }
 
 function enforcePermissions() {
+  // Skip for SUPER_ADMIN - they have all permissions
+  if (state.currentUserRole === "SUPER_ADMIN") return;
+
   const rights = getCurrentUserRights();
+  console.log("Enforcing permissions for user:", state.currentUserTeacherId, "Rights:", rights);
   const map = [
     { panel: ui.adminCreationPanel, button: ui.adminTabCreationBtn, key: "creation" },
     { panel: ui.adminAssignPanel, button: ui.adminTabAssignBtn, key: "assign" },
@@ -6087,6 +6091,9 @@ function enforcePermissions() {
     // Cacher le panel si pas d'accès du tout
     if (!hasAccess) {
       panel.classList.add("hidden");
+    } else {
+      // Montrer le panel s'il a accès
+      panel.classList.remove("hidden");
     }
 
     // Désactiver les contrôles si pas de droit MODIFY
