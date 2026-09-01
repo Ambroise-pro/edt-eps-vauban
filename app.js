@@ -856,7 +856,7 @@ function setupAuth() {
 
   if (ui.logoutBtn) {
     ui.logoutBtn.addEventListener("click", () => {
-      sessionStorage.removeItem("magicToken");
+      clearMagicToken();
       firebase.auth().signOut();
     });
   }
@@ -888,6 +888,46 @@ function setupAuth() {
   });
 }
 
+// Le jeton du lien magique identifie l'enseignant rattaché à la session anonyme.
+// Firebase conserve cette session dans localStorage/IndexedDB : garder le jeton dans
+// sessionStorage le faisait disparaître à la fermeture de l'onglet et à chaque
+// démarrage de la PWA, laissant un utilisateur authentifié mais non identifié,
+// donc sans aucun droit ni onglet visible. On le conserve donc dans localStorage.
+const MAGIC_TOKEN_KEY = "magicToken";
+
+function getMagicToken() {
+  try {
+    const persisted = localStorage.getItem(MAGIC_TOKEN_KEY);
+    if (persisted) return persisted;
+    // Reprise des sessions ouvertes avant ce changement.
+    const legacy = sessionStorage.getItem(MAGIC_TOKEN_KEY);
+    if (legacy) {
+      localStorage.setItem(MAGIC_TOKEN_KEY, legacy);
+      return legacy;
+    }
+  } catch (err) {
+    console.warn("Stockage du jeton indisponible:", err);
+  }
+  return null;
+}
+
+function setMagicToken(token) {
+  try {
+    localStorage.setItem(MAGIC_TOKEN_KEY, token);
+  } catch (err) {
+    console.warn("Impossible de conserver le jeton:", err);
+  }
+}
+
+function clearMagicToken() {
+  try {
+    localStorage.removeItem(MAGIC_TOKEN_KEY);
+    sessionStorage.removeItem(MAGIC_TOKEN_KEY);
+  } catch (err) {
+    console.warn("Impossible d'effacer le jeton:", err);
+  }
+}
+
 // Plusieurs fiches peuvent partager le même email/token (une par année scolaire).
 // Les droits sont enregistrés sur la fiche de l'année active : on la privilégie ici
 // pour que l'id retenu corresponde à celui utilisé par le panneau des droits.
@@ -900,7 +940,7 @@ function pickTeacherForCurrentYear(candidates) {
 
 async function syncCurrentUserRoleFromTeachers() {
   const user = state.currentUser;
-  const magicToken = sessionStorage.getItem("magicToken");
+  const magicToken = getMagicToken();
 
   if (!user) {
     if (magicToken) {
@@ -910,10 +950,11 @@ async function syncCurrentUserRoleFromTeachers() {
           await firebase.auth().signInAnonymously();
         } catch (err) {
           console.error("Anonymous auth failed:", err);
-          sessionStorage.removeItem("magicToken");
+          clearMagicToken();
         }
-      } else {
-        sessionStorage.removeItem("magicToken");
+      } else if (state.allTeachers.length) {
+        // Ne pas effacer un jeton valide tant que les fiches ne sont pas chargées.
+        clearMagicToken();
       }
     }
     state.currentUserRole = "NONE";
@@ -15397,7 +15438,7 @@ function handleMagicLink() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
   if (token) {
-    sessionStorage.setItem("magicToken", token);
+    setMagicToken(token);
     const newUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
   }
