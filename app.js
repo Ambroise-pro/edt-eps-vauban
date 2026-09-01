@@ -257,6 +257,14 @@ const ui = {
   publicAbsenceSummary: document.getElementById("publicAbsenceSummary"),
   publicOpenReplacementModalBtn: document.getElementById("publicOpenReplacementModalBtn"),
   publicAbsenceRequestsContainer: document.getElementById("publicAbsenceRequestsContainer"),
+  publicSessionModal: document.getElementById("publicSessionModal"),
+  publicSessionModalClose: document.getElementById("publicSessionModalClose"),
+  publicSessionModalTitle: document.getElementById("publicSessionModalTitle"),
+  publicSessionModalClass: document.getElementById("publicSessionModalClass"),
+  publicSessionModalProf: document.getElementById("publicSessionModalProf"),
+  publicSessionModalActivity: document.getElementById("publicSessionModalActivity"),
+  publicSessionModalCode: document.getElementById("publicSessionModalCode"),
+  publicSessionModalTime: document.getElementById("publicSessionModalTime"),
   publicReplacementModal: document.getElementById("publicReplacementModal"),
   publicReplacementModalContext: document.getElementById("publicReplacementModalContext"),
   publicReplacementModalBody: document.getElementById("publicReplacementModalBody"),
@@ -2540,6 +2548,20 @@ function setupForms() {
       const picked = parseIsoDate(dateValue);
       state.selectedPublicWeekStart = toIsoDate(getMonday(picked));
       renderPublic();
+    });
+  }
+
+  // Fermer le modal de détails de session
+  if (ui.publicSessionModalClose) {
+    ui.publicSessionModalClose.addEventListener("click", () => {
+      if (ui.publicSessionModal) ui.publicSessionModal.classList.add("hidden");
+    });
+  }
+  if (ui.publicSessionModal) {
+    ui.publicSessionModal.addEventListener("click", (e) => {
+      if (e.target === ui.publicSessionModal) {
+        ui.publicSessionModal.classList.add("hidden");
+      }
     });
   }
 }
@@ -10708,7 +10730,15 @@ function renderPublic() {
 
       const timeStr = `${sessionStart} - ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
 
-      alert(`Classe: ${sessionClass}\nProf: ${sessionProf}\nActivité: ${sessionActivity} (${sessionCode})\nHoraire: ${timeStr}`);
+      // Afficher le modal au lieu d'une alert
+      if (ui.publicSessionModal) {
+        if (ui.publicSessionModalClass) ui.publicSessionModalClass.textContent = sessionClass;
+        if (ui.publicSessionModalProf) ui.publicSessionModalProf.textContent = sessionProf;
+        if (ui.publicSessionModalActivity) ui.publicSessionModalActivity.textContent = sessionActivity;
+        if (ui.publicSessionModalCode) ui.publicSessionModalCode.textContent = sessionCode;
+        if (ui.publicSessionModalTime) ui.publicSessionModalTime.textContent = timeStr;
+        ui.publicSessionModal.classList.remove("hidden");
+      }
     });
   });
 

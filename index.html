@@ -171,6 +171,42 @@
           <p id="publicWeekLabel" class="summary-box"></p>
           <p id="publicWeekMeta" class="summary-box"></p>
           <div id="publicTimetableContainer" class="table-wrap"></div>
+
+          <!-- Modal pour les détails de session -->
+          <div id="publicSessionModal" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+              <div class="modal-header">
+                <h2 id="publicSessionModalTitle">Détails du créneau</h2>
+                <button id="publicSessionModalClose" class="modal-close" type="button">✕</button>
+              </div>
+              <div class="modal-body">
+                <div class="session-detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Classe</span>
+                    <span id="publicSessionModalClass" class="detail-value"></span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Professeur</span>
+                    <span id="publicSessionModalProf" class="detail-value"></span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Activité</span>
+                    <span id="publicSessionModalActivity" class="detail-value"></span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Code</span>
+                    <span id="publicSessionModalCode" class="detail-value"></span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Horaire</span>
+                    <span id="publicSessionModalTime" class="detail-value"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="public-week-nav public-week-nav-minimal">
             <button id="publicPrevWeekBtn" class="secondary-btn" type="button">Prec.</button>
             <button id="publicCurrentWeekBtn" class="secondary-btn" type="button">Semaine</button>

@@ -782,16 +782,21 @@ body {
 .public-timetable-table {
   table-layout: fixed;
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: #fcfbf9;
-  border: 1px solid #e3dad2;
+  border: 1px solid #d9d0c8;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .public-timetable-table th:first-child {
   position: sticky;
   left: 0;
   z-index: 3;
-  background: #eef2f6;
+  background: linear-gradient(135deg, #eef2f6 0%, #f5eadf 100%);
+  font-weight: 800;
+  color: #6b392b;
 }
 
 .public-timetable-table td.slot {
@@ -820,10 +825,20 @@ body {
 
 .timetable-slotwise thead th,
 .timetable-slotwise > tr:first-child th {
-  background: #f5eadf;
+  background: linear-gradient(135deg, #f5eadf 0%, #f0e5d8 100%);
   color: #6b392b;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  font-weight: 800;
+}
+
+.public-timetable-table thead th {
+  background: linear-gradient(135deg, #f5eadf 0%, #f0e5d8 100%);
+  color: #6b392b;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.8rem 0.5rem;
 }
 
 .timetable-slotwise td.slot:not(.slot-vacation):not(.slot-friday-na):not(.slot-friday-merged) {
@@ -831,23 +846,51 @@ body {
 }
 
 #publicTimetableContainer .slot-block {
-  padding: 0.26rem 0.36rem;
+  padding: 0.4rem 0.5rem;
   border-left: 4px solid rgba(0, 0, 0, 0.13);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+#publicTimetableContainer .slot-block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-left-width: 5px;
+  padding-left: 0.45rem;
+}
+
+#publicTimetableContainer .slot-block::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 100%);
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 .public-session-main {
   display: block;
-  font-size: 0.73rem;
-  line-height: 1.12;
-  font-weight: 800;
+  font-size: 0.75rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
 }
 
 .public-session-sub {
   display: block;
-  margin-top: 0.1rem;
-  font-size: 0.66rem;
-  line-height: 1.06;
-  opacity: 0.92;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  line-height: 1.08;
+  opacity: 0.88;
+  position: relative;
+  z-index: 1;
 }
 
 .timetable-shared {
@@ -7861,6 +7904,121 @@ button:hover {
   }
 }
 
+/* Public Session Modal */
+#publicSessionModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#publicSessionModal.hidden {
+  display: none !important;
+}
+
+#publicSessionModal .modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+
+#publicSessionModal .modal-content {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#publicSessionModal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e3dad2;
+  background: linear-gradient(135deg, #f5eadf 0%, #fcfbf9 100%);
+}
+
+#publicSessionModal .modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #6b392b;
+}
+
+#publicSessionModal .modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+#publicSessionModal .modal-close:hover {
+  color: #6b392b;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+#publicSessionModal .modal-body {
+  padding: 1.5rem;
+}
+
+.session-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #6b392b;
+  word-wrap: break-word;
+}
+
 /* Responsive Documents */
 @media (max-width: 768px) {
   .documents-layout {
@@ -7869,5 +8027,14 @@ button:hover {
 
   .documents-files-list {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  #publicSessionModal .modal-content {
+    width: 95%;
+    max-width: none;
+  }
+
+  .session-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
