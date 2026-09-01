@@ -5994,20 +5994,9 @@ function bindGlobalClassLetterEditActions(container) {
         ...(state.assignLetterDraftByClass || {}),
         [classId]: letter,
       };
-      const sibling = state.classes.find((other) => {
-        if (other.id === classId) return false;
-        if (String(other.level || "") !== String(cls.level || "")) return false;
-        const otherParts = splitClassNameForLetterEdit(other.name);
-        return otherParts.prefix === parts.prefix && otherParts.letter === letter;
-      });
-      if (sibling && parts.letter) {
-        nextDrafts[sibling.id] = parts.letter;
-      }
       state.assignLetterDraftByClass = nextDrafts;
       if (ui.sessionError) {
-        ui.sessionError.textContent = sibling
-          ? `Brouillon: échange ${cls.name} ↔ ${sibling.name}. Validation globale en attente.`
-          : `Brouillon: ${cls.name} -> ${parts.prefix}${letter}. Validation globale en attente.`;
+        ui.sessionError.textContent = `Brouillon: ${cls.name} -> ${parts.prefix}${letter}. Validation globale en attente.`;
         ui.sessionError.className = "error-text hours-ok";
       }
       renderGlobalPlanner();
