@@ -1508,6 +1508,10 @@ function subscribeData() {
 
   onSnapshot(qUserRights, (snap) => {
     state.userRights = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // Refresh admin tab visibility when rights change
+    if (state.selectedAdminTab) {
+      setAdminTab(state.selectedAdminTab);
+    }
     render();
   });
 
