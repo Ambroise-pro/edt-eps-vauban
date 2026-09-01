@@ -8284,6 +8284,30 @@ function renderProgrammingPanel() {
       : `<span class="material-symbols-outlined">visibility</span> Visualiser les créneaux restants`;
   }
 
+  // render() est déclenché par une dizaine d'écouteurs Firestore sans rapport avec cet
+  // écran (sessions, absences, remplacements...). Reconstruire cette liste à chaque appel
+  // effaçait toute sélection en cours dans les <select> "Salle préférentielle" si un tel
+  // événement survenait avant le clic sur "Enregistrer"/"Ajouter" — d'où l'impression que
+  // ce champ précis ne se modifiait jamais, alors que les champs texte (non régénérés de
+  // la même façon) résistaient. On capture donc les saisies en cours avant de reconstruire,
+  // pour les restaurer ensuite plutôt que de revenir aux valeurs enregistrées en base.
+  const pendingActivityEdits = new Map();
+  if (ui.programActivitiesList) {
+    ui.programActivitiesList.querySelectorAll("[data-edit-program-activity-label]").forEach((input) => {
+      const id = input.dataset.editProgramActivityLabel;
+      pendingActivityEdits.set(id, { ...(pendingActivityEdits.get(id) || {}), label: input.value });
+    });
+    ui.programActivitiesList.querySelectorAll("[data-edit-program-activity-code]").forEach((input) => {
+      const id = input.dataset.editProgramActivityCode;
+      pendingActivityEdits.set(id, { ...(pendingActivityEdits.get(id) || {}), code: input.value });
+    });
+    ui.programActivitiesList.querySelectorAll("[data-edit-program-activity-location]").forEach((sel) => {
+      const id = sel.dataset.editProgramActivityLocation;
+      pendingActivityEdits.set(id, { ...(pendingActivityEdits.get(id) || {}), location: sel.value });
+    });
+  }
+  const pendingNewActivityLocation = ui.programActivityPreferredLocationSelect?.value || "";
+
   const activityLocationOptions = locations
     .map((l) => `<option value="${escapeHtml(l.name)}">${escapeHtml(l.name)}</option>`)
     .join("");
@@ -8310,14 +8334,22 @@ function renderProgrammingPanel() {
     .join("");
   ui.programActivitiesList.innerHTML = activityItems || `<p class="slot-picker-empty">Aucune activité</p>`;
   for (const a of activities) {
+    const pending = pendingActivityEdits.get(a.id);
+    const labelInput = ui.programActivitiesList.querySelector(`[data-edit-program-activity-label="${cssEscape(a.id)}"]`);
+    if (labelInput) labelInput.value = pending?.label ?? a.label;
+    const codeInput = ui.programActivitiesList.querySelector(`[data-edit-program-activity-code="${cssEscape(a.id)}"]`);
+    if (codeInput) codeInput.value = pending?.code ?? (a.code || "");
     const locSel = ui.programActivitiesList.querySelector(`[data-edit-program-activity-location="${cssEscape(a.id)}"]`);
-    if (locSel) locSel.value = String(a.preferredLocationName || "");
+    if (locSel) locSel.value = pending?.location ?? String(a.preferredLocationName || "");
   }
   if (ui.programActivityPreferredLocationSelect) {
     ui.programActivityPreferredLocationSelect.innerHTML = `
       <option value="">Salle préférentielle (optionnel)</option>
       ${locations.map((l) => `<option value="${escapeHtml(l.name)}">${escapeHtml(l.name)}</option>`).join("")}
     `;
+    if (pendingNewActivityLocation && locations.some((l) => l.name === pendingNewActivityLocation)) {
+      ui.programActivityPreferredLocationSelect.value = pendingNewActivityLocation;
+    }
   }
 
   const locationUsage = computeLocationUsage(visibleSessions);
