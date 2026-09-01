@@ -1288,7 +1288,8 @@ function setAdminTab(tab) {
   } else {
   if (ui.adminTabCreationBtn) ui.adminTabCreationBtn.classList.toggle("hidden", rights.creation === "NONE");
   if (ui.adminTabAssignBtn) ui.adminTabAssignBtn.classList.toggle("hidden", rights.assign === "NONE");
-  if (ui.adminTabProgramBtn) ui.adminTabProgramBtn.classList.toggle("hidden", rights.program === "NONE");
+  // La programmation reste visible pour tous, en lecture seule sans droit MODIFY.
+  if (ui.adminTabProgramBtn) ui.adminTabProgramBtn.classList.remove("hidden");
   if (ui.adminTabAlgoBtn) ui.adminTabAlgoBtn.classList.toggle("hidden", rights.program === "NONE");
   if (ui.adminTabBusBtn) ui.adminTabBusBtn.classList.toggle("hidden", rights.bus === "NONE");
   if (ui.adminTabTasksBtn) ui.adminTabTasksBtn.classList.toggle("hidden", rights.tasks === "NONE");
@@ -6123,7 +6124,8 @@ function enforcePermissions() {
   const map = [
     { panel: ui.adminCreationPanel, button: ui.adminTabCreationBtn, key: "creation" },
     { panel: ui.adminAssignPanel, button: ui.adminTabAssignBtn, key: "assign" },
-    { panel: ui.adminProgramPanel, button: ui.adminTabProgramBtn, key: "program" },
+    // La programmation est consultable par tous ; seule sa modification suit les droits.
+    { panel: ui.adminProgramPanel, button: ui.adminTabProgramBtn, key: "program", alwaysVisible: true },
     { panel: ui.adminAlgoPanel, button: ui.adminTabAlgoBtn, key: "program" },
     { panel: ui.adminBusPanel, button: ui.adminTabBusBtn, key: "bus" },
     { panel: ui.adminTasksPanel, button: ui.adminTabTasksBtn, key: "tasks" },
@@ -6138,10 +6140,10 @@ function enforcePermissions() {
     { panel: ui.adminInventoryPanel, button: ui.adminTabInventoryBtn, key: "inventory" },
   ];
 
-  map.forEach(({ panel, button, key }) => {
+  map.forEach(({ panel, button, key, alwaysVisible }) => {
     if (!panel) return;
 
-    const hasAccess = rights[key] !== "NONE";
+    const hasAccess = Boolean(alwaysVisible) || rights[key] !== "NONE";
     const canModify = rights[key] === "MODIFY";
 
     // Cacher/montrer le bouton d'onglet basé sur l'accès (utiliser classe "hidden" pour cohérence)
