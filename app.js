@@ -5846,7 +5846,10 @@ function buildAssignLetterPreviewMap(drafts = state.assignLetterDraftByClass || 
     });
   });
 
-  for (const [classId, rawLetter] of Object.entries(drafts || {})) {
+  // Convert drafts to Map for easier lookups
+  const draftMap = new Map(Object.entries(drafts || {}));
+
+  for (const [classId, rawLetter] of draftMap.entries()) {
     const cls = state.classes.find((c) => c.id === classId);
     if (!cls) continue;
     const parts = splitClassNameForLetterEdit(cls.name);
@@ -5854,10 +5857,18 @@ function buildAssignLetterPreviewMap(drafts = state.assignLetterDraftByClass || 
     if (!targetLetter) continue;
     const key = `${String(cls.level || "")}__${parts.prefix}`;
     const siblings = groups.get(key) || [];
+
+    // Check if there's a class that wants the current class's letter (bidirectional swap)
     const targetSibling = siblings.find((entry) => entry.cls.id !== classId && entry.currentLetter === targetLetter);
+    const bidirectionalPartner = targetSibling && draftMap.has(targetSibling.cls.id) && draftMap.get(targetSibling.cls.id) === parts.letter;
 
     nextNameByClass.set(classId, `${parts.prefix}${targetLetter}`);
-    if (targetSibling) {
+
+    // Only apply the reverse swap if it's bidirectional (prevents cascading overwrites)
+    if (bidirectionalPartner) {
+      nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
+    } else if (targetSibling && !draftMap.has(targetSibling.cls.id)) {
+      // If target sibling has no draft, we can swap
       nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
     }
   }
