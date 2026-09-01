@@ -5916,6 +5916,10 @@ async function commitAssignLetterDrafts() {
   }
 
   const nextNameByClass = buildAssignLetterPreviewMap(drafts);
+  console.log("DEBUG: nextNameByClass map size:", nextNameByClass.size);
+  console.log("DEBUG: state.classes length:", state.classes.length);
+  console.log("DEBUG: First 3 classes in nextNameByClass:", Array.from(nextNameByClass.entries()).slice(0, 3));
+
   const errors = [];
   for (const cls of state.classes) {
     if (Object.prototype.hasOwnProperty.call(drafts, cls.id)) {
@@ -5924,7 +5928,7 @@ async function commitAssignLetterDrafts() {
         errors.push(`${cls.name}: lettre invalide.`);
       }
     }
-    const nextName = String(nextNameByClass.get(cls.id) || "");
+    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
     if (!nextName) {
       errors.push(`${cls.name}: lettre invalide.`);
     }
