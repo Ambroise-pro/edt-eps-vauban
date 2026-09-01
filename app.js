@@ -5823,68 +5823,104 @@ function renderAssignSidebar() {
   });
 }
 
-function splitClassNameForLetterEdit(name) {
-  const raw = String(name || "").trim();
-  const m = raw.match(/^(.*?)([A-Za-z])$/);
-  if (!m) return { prefix: raw, letter: "" };
-  return { prefix: String(m[1] || ""), letter: String(m[2] || "").toUpperCase() };
-}
+function renderAssignLettersTableView() {
+  const container = ui.globalPlannerContainer;
+  if (!container) return;
 
-function buildAssignLetterPreviewMap(drafts = state.assignLetterDraftByClass || {}) {
-  const nextNameByClass = new Map();
-  state.classes.forEach((cls) => nextNameByClass.set(cls.id, String(cls.name || "")));
+  // Group classes by teacher
+  const classesByTeacher = new Map();
+  const activeYear = getActiveSchoolYearId();
 
-  const groups = new Map();
-  state.classes.forEach((cls) => {
-    const parts = splitClassNameForLetterEdit(cls.name);
-    const key = `${String(cls.level || "")}__${parts.prefix}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({
-      cls,
-      prefix: parts.prefix,
-      currentLetter: parts.letter,
-    });
-  });
+  for (const cls of state.classes) {
+    if (!isDocInActiveSchoolYear(cls)) continue;
 
-  // Convert drafts to Map for easier lookups
-  const draftMap = new Map(Object.entries(drafts || {}));
+    // Find teachers who teach this class
+    const teachersForClass = state.sessions
+      .filter((s) => s.classId === cls.id && isDocInActiveSchoolYear(s))
+      .map((s) => state.teachers.find((t) => t.id === s.teacherId))
+      .filter((t) => t && isTeacherActiveInYear(t, activeYear));
 
-  for (const [classId, rawLetter] of draftMap.entries()) {
-    const cls = state.classes.find((c) => c.id === classId);
-    if (!cls) continue;
-    const parts = splitClassNameForLetterEdit(cls.name);
-    const targetLetter = String(rawLetter || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-    if (!targetLetter) continue;
-    const key = `${String(cls.level || "")}__${parts.prefix}`;
-    const siblings = groups.get(key) || [];
-
-    // Check if there's a class that wants the current class's letter (bidirectional swap)
-    const targetSibling = siblings.find((entry) => entry.cls.id !== classId && entry.currentLetter === targetLetter);
-    const bidirectionalPartner = targetSibling && draftMap.has(targetSibling.cls.id) && draftMap.get(targetSibling.cls.id) === parts.letter;
-
-    nextNameByClass.set(classId, `${parts.prefix}${targetLetter}`);
-
-    // Only apply the reverse swap if it's bidirectional (prevents cascading overwrites)
-    if (bidirectionalPartner) {
-      nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
-    } else if (targetSibling && !draftMap.has(targetSibling.cls.id)) {
-      // If target sibling has no draft, we can swap
-      nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
+    for (const teacher of teachersForClass) {
+      if (!classesByTeacher.has(teacher.id)) {
+        classesByTeacher.set(teacher.id, { teacher, classes: [] });
+      }
+      if (!classesByTeacher.get(teacher.id).classes.find((c) => c.id === cls.id)) {
+        classesByTeacher.get(teacher.id).classes.push(cls);
+      }
     }
   }
 
-  return nextNameByClass;
+  // Sort teachers and their classes
+  const sortedTeachers = Array.from(classesByTeacher.values())
+    .sort((a, b) => String(a.teacher.name || "").localeCompare(String(b.teacher.name || ""), "fr"))
+    .map((entry) => ({
+      ...entry,
+      classes: entry.classes.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr")),
+    }));
+
+  // Build HTML table
+  let tableHtml = `
+    <div class="assign-letters-table-container">
+      <h3>Modification des noms de classes par enseignant</h3>
+      <table class="assign-letters-table">
+        <thead>
+          <tr>
+            <th>Enseignant</th>
+            <th>Classes actuelles</th>
+            <th>Nouveau nom</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const { teacher, classes } of sortedTeachers) {
+    for (const cls of classes) {
+      const draft = state.assignLetterDraftByClass?.[cls.id] || "";
+      const displayValue = draft || cls.name || "";
+      tableHtml += `
+        <tr data-class-id="${escapeHtml(cls.id)}">
+          <td><strong>${escapeHtml(teacher.name || "")}</strong></td>
+          <td>${escapeHtml(cls.name || "")}</td>
+          <td>
+            <input type="text" class="assign-letter-input" data-class-id="${escapeHtml(cls.id)}"
+                   value="${escapeHtml(displayValue)}" placeholder="Ex: Quatrième 4A" />
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  tableHtml += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = tableHtml;
+
+  // Bind input change handlers
+  container.querySelectorAll(".assign-letter-input").forEach((input) => {
+    input.addEventListener("change", () => {
+      const classId = input.dataset.classId;
+      const value = input.value.trim();
+      if (!value) {
+        delete state.assignLetterDraftByClass[classId];
+      } else {
+        if (!state.assignLetterDraftByClass) state.assignLetterDraftByClass = {};
+        state.assignLetterDraftByClass[classId] = value;
+      }
+    });
+  });
 }
 
 function getClassLabelWithDraftHtml(classId, fallbackLabel = "") {
-  const baseLabel = String(fallbackLabel || getClassLabelById(classId) || "");
-  if (!state.assignLettersEditMode) return escapeHtml(baseLabel);
-  if (isSpecialAssignmentId(classId)) return escapeHtml(baseLabel);
+  if (!state.assignLettersEditMode) return escapeHtml(String(fallbackLabel || ""));
+  if (isSpecialAssignmentId(classId)) return escapeHtml(String(fallbackLabel || ""));
   const cls = state.classes.find((c) => c.id === classId);
-  if (!cls) return escapeHtml(baseLabel);
-  const nextName = String(buildAssignLetterPreviewMap().get(classId) || cls.name || "");
-  if (nextName === String(cls.name || "")) return escapeHtml(baseLabel);
-  return `<span class="assign-letter-old">${escapeHtml(String(cls.name || ""))}</span> <span class="assign-letter-new">${escapeHtml(nextName)}</span>`;
+  if (!cls) return escapeHtml(String(fallbackLabel || ""));
+  const draft = state.assignLetterDraftByClass?.[classId];
+  if (!draft) return escapeHtml(String(fallbackLabel || ""));
+  return `<span class="assign-letter-old">${escapeHtml(String(cls.name || ""))}</span> <span class="assign-letter-new">${escapeHtml(draft)}</span>`;
 }
 
 
@@ -5896,32 +5932,35 @@ async function commitAssignLetterDrafts() {
     return { ok: true, message: "Aucun changement de lettre." };
   }
 
-  const nextNameByClass = buildAssignLetterPreviewMap(drafts);
   const errors = [];
+  const newNames = new Map();
+
+  // Build new class names from drafts
   for (const cls of state.classes) {
-    if (Object.prototype.hasOwnProperty.call(drafts, cls.id)) {
-      const draftLetter = String(drafts[cls.id] || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-      if (!draftLetter) {
-        errors.push(`${cls.name}: lettre invalide.`);
+    if (drafts.hasOwnProperty(cls.id)) {
+      const newName = String(drafts[cls.id] || "").trim();
+      if (!newName) {
+        errors.push(`${cls.name}: nom invalide.`);
+        continue;
       }
-    }
-    const nextName = String(nextNameByClass.get(cls.id) || "");
-    if (!nextName) {
-      errors.push(`${cls.name}: lettre invalide.`);
+      newNames.set(cls.id, newName);
+    } else {
+      newNames.set(cls.id, cls.name);
     }
   }
 
+  // Check for duplicates
   const seen = new Map();
-  for (const cls of state.classes) {
-    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
-    const key = `${String(cls.level || "")}__${nextName}`;
-    seen.set(key, (seen.get(key) || 0) + 1);
+  for (const [classId, name] of newNames.entries()) {
+    const cls = state.classes.find((c) => c.id === classId);
+    if (!cls) continue;
+    const key = `${String(cls.level || "")}__${String(name || "")}`;
+    if (seen.has(key)) {
+      errors.push(`Doublon: ${name} existe déjà à ce niveau.`);
+    }
+    seen.set(key, classId);
   }
-  for (const [key, count] of seen.entries()) {
-    if (count <= 1) continue;
-    const [level, name] = key.split("__");
-    errors.push(`Doublon final détecté: ${level} ${name}`);
-  }
+
   if (errors.length) {
     return { ok: false, error: `Validation impossible:\n- ${Array.from(new Set(errors)).join("\n- ")}` };
   }
@@ -5929,9 +5968,9 @@ async function commitAssignLetterDrafts() {
   const batch = db.batch();
   let changed = 0;
   for (const cls of state.classes) {
-    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
-    if (nextName === String(cls.name || "")) continue;
-    batch.update(doc(db, "classes", cls.id), { name: nextName, updatedAt: serverTimestamp() });
+    const newName = newNames.get(cls.id);
+    if (newName === String(cls.name || "")) continue;
+    batch.update(doc(db, "classes", cls.id), { name: newName, updatedAt: serverTimestamp() });
     changed += 1;
   }
 
@@ -5952,44 +5991,8 @@ async function commitAssignLetterDrafts() {
 }
 
 function bindGlobalClassLetterEditActions(container) {
-  if (!container || !state.assignLettersEditMode) return;
-  container.querySelectorAll("[data-edit-class-letter]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const classId = String(btn.dataset.editClassLetter || "").trim();
-      if (!classId) return;
-      const cls = state.classes.find((c) => c.id === classId);
-      if (!cls) return;
-      const parts = splitClassNameForLetterEdit(cls.name);
-      const draft = String(state.assignLetterDraftByClass?.[classId] || "");
-      const answer = window.prompt(`Nouvelle lettre pour ${cls.name}:`, draft || parts.letter || "");
-      if (answer === null) return;
-      const letter = String(answer || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-      if (!letter) return;
-      const nextDrafts = {
-        ...(state.assignLetterDraftByClass || {}),
-        [classId]: letter,
-      };
-      const sibling = state.classes.find((other) => {
-        if (other.id === classId) return false;
-        if (String(other.level || "") !== String(cls.level || "")) return false;
-        const otherParts = splitClassNameForLetterEdit(other.name);
-        return otherParts.prefix === parts.prefix && otherParts.letter === letter;
-      });
-      if (sibling && parts.letter) {
-        nextDrafts[sibling.id] = parts.letter;
-      }
-      state.assignLetterDraftByClass = nextDrafts;
-      if (ui.sessionError) {
-        ui.sessionError.textContent = sibling
-          ? `Brouillon: échange ${cls.name} ↔ ${sibling.name}. Validation globale en attente.`
-          : `Brouillon: ${cls.name} -> ${parts.prefix}${letter}. Validation globale en attente.`;
-        ui.sessionError.className = "error-text hours-ok";
-      }
-      renderGlobalPlanner();
-    });
-  });
+  // Event binding is now handled in renderAssignLettersTableView
+  // This function is kept for backward compatibility but does nothing
 }
 
 function parseAssignPayload(payload) {
@@ -10928,6 +10931,13 @@ function renderGlobalPlanner() {
   if (ui.assignEditLettersBtn) {
     ui.assignEditLettersBtn.textContent = state.assignLettersEditMode ? "Valider les lettres" : "Changer les lettres";
   }
+
+  // If in letter edit mode, show table instead of grid
+  if (state.assignLettersEditMode) {
+    renderAssignLettersTableView();
+    return;
+  }
+
   const weekType = "A";
   const layout = state.selectedGlobalPlannerLayout === "EXCEL" ? "EXCEL" : "GRID";
   if (ui.globalWeekType) ui.globalWeekType.value = weekType;
@@ -11019,13 +11029,6 @@ function renderGlobalPlanner() {
         if (conflict) cellConflict = true;
         const baseClass = "slot-block global-stacked-block";
         const segClass = getSessionSegmentClassName(e);
-        const canEditLetter =
-          state.assignLettersEditMode &&
-          !isSpecialAssignmentId(e.classId) &&
-          Number(e.segmentIndex || 0) === 0;
-        const extraContent = canEditLetter
-          ? `<button class="secondary-btn mini-btn" data-edit-class-letter="${escapeHtml(e.classId)}" type="button" title="Changer la lettre">✎</button>`
-          : "";
         return renderSessionBlockHtml({
           sessionId: e.sessionId,
           text: e.label,
@@ -11034,7 +11037,7 @@ function renderGlobalPlanner() {
           className: `${baseClass}${segClass}${conflict ? " conflict-block" : ""}`,
           cadence: e.cadence,
           weekType: e.weekType,
-          extraContent,
+          extraContent: "",
           showContent: e.showContent !== false,
           showRemoveButton: e.showContent !== false,
         });
