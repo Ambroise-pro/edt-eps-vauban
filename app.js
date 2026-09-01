@@ -257,14 +257,6 @@ const ui = {
   publicAbsenceSummary: document.getElementById("publicAbsenceSummary"),
   publicOpenReplacementModalBtn: document.getElementById("publicOpenReplacementModalBtn"),
   publicAbsenceRequestsContainer: document.getElementById("publicAbsenceRequestsContainer"),
-  publicSessionModal: document.getElementById("publicSessionModal"),
-  publicSessionModalClose: document.getElementById("publicSessionModalClose"),
-  publicSessionModalTitle: document.getElementById("publicSessionModalTitle"),
-  publicSessionModalClass: document.getElementById("publicSessionModalClass"),
-  publicSessionModalProf: document.getElementById("publicSessionModalProf"),
-  publicSessionModalActivity: document.getElementById("publicSessionModalActivity"),
-  publicSessionModalCode: document.getElementById("publicSessionModalCode"),
-  publicSessionModalTime: document.getElementById("publicSessionModalTime"),
   publicReplacementModal: document.getElementById("publicReplacementModal"),
   publicReplacementModalContext: document.getElementById("publicReplacementModalContext"),
   publicReplacementModalBody: document.getElementById("publicReplacementModalBody"),
@@ -1326,13 +1318,8 @@ function getCurrentUserRights() {
     repartition: "NONE",
     inventory: "NONE",
   };
-  if (!rights?.permissions) {
-    console.log("No rights found for user:", state.currentUserTeacherId, "Returning defaults");
-    return defaultRights;
-  }
-  const result = { ...defaultRights, ...rights.permissions };
-  console.log("Rights for user:", state.currentUserTeacherId, result);
-  return result;
+  if (!rights?.permissions) return defaultRights;
+  return { ...defaultRights, ...rights.permissions };
 }
 
 function buildConstraintsPicker() {
@@ -1501,7 +1488,6 @@ function subscribeData() {
   onSnapshot(qProgramActivities, (snap) => {
     state.programActivities = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((x) => isDocInActiveSchoolYear(x))
       .filter((x) => x.label)
       .sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "fr"));
     render();
@@ -1510,7 +1496,6 @@ function subscribeData() {
   onSnapshot(qProgramLocations, (snap) => {
     state.programLocations = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((x) => isDocInActiveSchoolYear(x))
       .filter((x) => x.name)
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
     render();
@@ -1523,7 +1508,6 @@ function subscribeData() {
 
   onSnapshot(qUserRights, (snap) => {
     state.userRights = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    console.log("UserRights loaded:", state.userRights);
     render();
   });
 
@@ -2548,20 +2532,6 @@ function setupForms() {
       const picked = parseIsoDate(dateValue);
       state.selectedPublicWeekStart = toIsoDate(getMonday(picked));
       renderPublic();
-    });
-  }
-
-  // Fermer le modal de détails de session
-  if (ui.publicSessionModalClose) {
-    ui.publicSessionModalClose.addEventListener("click", () => {
-      if (ui.publicSessionModal) ui.publicSessionModal.classList.add("hidden");
-    });
-  }
-  if (ui.publicSessionModal) {
-    ui.publicSessionModal.addEventListener("click", (e) => {
-      if (e.target === ui.publicSessionModal) {
-        ui.publicSessionModal.classList.add("hidden");
-      }
     });
   }
 }
@@ -5853,57 +5823,104 @@ function renderAssignSidebar() {
   });
 }
 
-function splitClassNameForLetterEdit(name) {
-  const raw = String(name || "").trim();
-  const m = raw.match(/^(.*?)([A-Za-z])$/);
-  if (!m) return { prefix: raw, letter: "" };
-  return { prefix: String(m[1] || ""), letter: String(m[2] || "").toUpperCase() };
-}
+function renderAssignLettersTableView() {
+  const container = ui.globalPlannerContainer;
+  if (!container) return;
 
-function buildAssignLetterPreviewMap(drafts = state.assignLetterDraftByClass || {}) {
-  const nextNameByClass = new Map();
-  state.classes.forEach((cls) => nextNameByClass.set(cls.id, String(cls.name || "")));
+  // Group classes by teacher
+  const classesByTeacher = new Map();
+  const activeYear = getActiveSchoolYearId();
 
-  const groups = new Map();
-  state.classes.forEach((cls) => {
-    const parts = splitClassNameForLetterEdit(cls.name);
-    const key = `${String(cls.level || "")}__${parts.prefix}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({
-      cls,
-      prefix: parts.prefix,
-      currentLetter: parts.letter,
-    });
-  });
+  for (const cls of state.classes) {
+    if (!isDocInActiveSchoolYear(cls)) continue;
 
-  for (const [classId, rawLetter] of Object.entries(drafts || {})) {
-    const cls = state.classes.find((c) => c.id === classId);
-    if (!cls) continue;
-    const parts = splitClassNameForLetterEdit(cls.name);
-    const targetLetter = String(rawLetter || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-    if (!targetLetter) continue;
-    const key = `${String(cls.level || "")}__${parts.prefix}`;
-    const siblings = groups.get(key) || [];
-    const targetSibling = siblings.find((entry) => entry.cls.id !== classId && entry.currentLetter === targetLetter);
+    // Find teachers who teach this class
+    const teachersForClass = state.sessions
+      .filter((s) => s.classId === cls.id && isDocInActiveSchoolYear(s))
+      .map((s) => state.teachers.find((t) => t.id === s.teacherId))
+      .filter((t) => t && isTeacherActiveInYear(t, activeYear));
 
-    nextNameByClass.set(classId, `${parts.prefix}${targetLetter}`);
-    if (targetSibling) {
-      nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
+    for (const teacher of teachersForClass) {
+      if (!classesByTeacher.has(teacher.id)) {
+        classesByTeacher.set(teacher.id, { teacher, classes: [] });
+      }
+      if (!classesByTeacher.get(teacher.id).classes.find((c) => c.id === cls.id)) {
+        classesByTeacher.get(teacher.id).classes.push(cls);
+      }
     }
   }
 
-  return nextNameByClass;
+  // Sort teachers and their classes
+  const sortedTeachers = Array.from(classesByTeacher.values())
+    .sort((a, b) => String(a.teacher.name || "").localeCompare(String(b.teacher.name || ""), "fr"))
+    .map((entry) => ({
+      ...entry,
+      classes: entry.classes.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr")),
+    }));
+
+  // Build HTML table
+  let tableHtml = `
+    <div class="assign-letters-table-container">
+      <h3>Modification des noms de classes par enseignant</h3>
+      <table class="assign-letters-table">
+        <thead>
+          <tr>
+            <th>Enseignant</th>
+            <th>Classes actuelles</th>
+            <th>Nouveau nom</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const { teacher, classes } of sortedTeachers) {
+    for (const cls of classes) {
+      const draft = state.assignLetterDraftByClass?.[cls.id] || "";
+      const displayValue = draft || cls.name || "";
+      tableHtml += `
+        <tr data-class-id="${escapeHtml(cls.id)}">
+          <td><strong>${escapeHtml(teacher.name || "")}</strong></td>
+          <td>${escapeHtml(cls.name || "")}</td>
+          <td>
+            <input type="text" class="assign-letter-input" data-class-id="${escapeHtml(cls.id)}"
+                   value="${escapeHtml(displayValue)}" placeholder="Ex: Quatrième 4A" />
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  tableHtml += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = tableHtml;
+
+  // Bind input change handlers
+  container.querySelectorAll(".assign-letter-input").forEach((input) => {
+    input.addEventListener("change", () => {
+      const classId = input.dataset.classId;
+      const value = input.value.trim();
+      if (!value) {
+        delete state.assignLetterDraftByClass[classId];
+      } else {
+        if (!state.assignLetterDraftByClass) state.assignLetterDraftByClass = {};
+        state.assignLetterDraftByClass[classId] = value;
+      }
+    });
+  });
 }
 
 function getClassLabelWithDraftHtml(classId, fallbackLabel = "") {
-  const baseLabel = String(fallbackLabel || getClassLabelById(classId) || "");
-  if (!state.assignLettersEditMode) return escapeHtml(baseLabel);
-  if (isSpecialAssignmentId(classId)) return escapeHtml(baseLabel);
+  if (!state.assignLettersEditMode) return escapeHtml(String(fallbackLabel || ""));
+  if (isSpecialAssignmentId(classId)) return escapeHtml(String(fallbackLabel || ""));
   const cls = state.classes.find((c) => c.id === classId);
-  if (!cls) return escapeHtml(baseLabel);
-  const nextName = String(buildAssignLetterPreviewMap().get(classId) || cls.name || "");
-  if (nextName === String(cls.name || "")) return escapeHtml(baseLabel);
-  return `<span class="assign-letter-old">${escapeHtml(String(cls.name || ""))}</span> <span class="assign-letter-new">${escapeHtml(nextName)}</span>`;
+  if (!cls) return escapeHtml(String(fallbackLabel || ""));
+  const draft = state.assignLetterDraftByClass?.[classId];
+  if (!draft) return escapeHtml(String(fallbackLabel || ""));
+  return `<span class="assign-letter-old">${escapeHtml(String(cls.name || ""))}</span> <span class="assign-letter-new">${escapeHtml(draft)}</span>`;
 }
 
 
@@ -5915,47 +5932,44 @@ async function commitAssignLetterDrafts() {
     return { ok: true, message: "Aucun changement de lettre." };
   }
 
-  const nextNameByClass = buildAssignLetterPreviewMap(drafts);
-  console.log("DEBUG: nextNameByClass map size:", nextNameByClass.size);
-  console.log("DEBUG: state.classes length:", state.classes.length);
-  console.log("DEBUG: First 3 classes in nextNameByClass:", Array.from(nextNameByClass.entries()).slice(0, 3));
-
   const errors = [];
-  for (const cls of state.classes) {
-    if (Object.prototype.hasOwnProperty.call(drafts, cls.id)) {
-      const draftLetter = String(drafts[cls.id] || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-      if (!draftLetter) {
-        errors.push(`${cls.name}: lettre invalide.`);
-      }
-    }
-    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
-    if (!nextName) {
-      errors.push(`${cls.name}: lettre invalide.`);
-    }
-  }
-
-  const seen = new Map();
-  for (const cls of state.classes) {
-    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
-    const key = `${String(cls.level || "")}__${nextName}`;
-    seen.set(key, (seen.get(key) || 0) + 1);
-  }
-  for (const [key, count] of seen.entries()) {
-    if (count <= 1) continue;
-    const [level, name] = key.split("__");
-    errors.push(`Doublon final détecté: ${level} ${name}`);
-  }
-  if (errors.length) {
-    return { ok: false, error: `Validation impossible:\n- ${Array.from(new Set(errors)).join("\n- ")}` };
-  }
-
   const batch = db.batch();
   let changed = 0;
-  for (const cls of state.classes) {
-    const nextName = String(nextNameByClass.get(cls.id) || cls.name || "");
-    if (nextName === String(cls.name || "")) continue;
-    batch.update(doc(db, "classes", cls.id), { name: nextName, updatedAt: serverTimestamp() });
+
+  // Only validate and update classes that have changed
+  for (const [classId, newName] of Object.entries(drafts)) {
+    const cls = state.classes.find((c) => c.id === classId);
+    if (!cls) continue;
+
+    const trimmedName = String(newName || "").trim();
+    if (!trimmedName) {
+      errors.push(`${cls.name}: nom invalide.`);
+      continue;
+    }
+
+    // Only update if the name actually changed
+    if (trimmedName === String(cls.name || "")) continue;
+
+    // Check for duplicates only with OTHER changed classes, not existing classes
+    const isDuplicate = Object.entries(drafts).some(([otherId, otherName]) => {
+      if (otherId === classId) return false;
+      const otherCls = state.classes.find((c) => c.id === otherId);
+      if (!otherCls) return false;
+      if (String(otherCls.level || "") !== String(cls.level || "")) return false;
+      return String(otherName || "").trim() === trimmedName;
+    });
+
+    if (isDuplicate) {
+      errors.push(`Doublon dans les changements: ${trimmedName}`);
+      continue;
+    }
+
+    batch.update(doc(db, "classes", cls.id), { name: trimmedName, updatedAt: serverTimestamp() });
     changed += 1;
+  }
+
+  if (errors.length) {
+    return { ok: false, error: `Validation impossible:\n- ${Array.from(new Set(errors)).join("\n- ")}` };
   }
 
   if (!changed) {
@@ -5975,33 +5989,8 @@ async function commitAssignLetterDrafts() {
 }
 
 function bindGlobalClassLetterEditActions(container) {
-  if (!container || !state.assignLettersEditMode) return;
-  container.querySelectorAll("[data-edit-class-letter]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const classId = String(btn.dataset.editClassLetter || "").trim();
-      if (!classId) return;
-      const cls = state.classes.find((c) => c.id === classId);
-      if (!cls) return;
-      const parts = splitClassNameForLetterEdit(cls.name);
-      const draft = String(state.assignLetterDraftByClass?.[classId] || "");
-      const answer = window.prompt(`Nouvelle lettre pour ${cls.name}:`, draft || parts.letter || "");
-      if (answer === null) return;
-      const letter = String(answer || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-      if (!letter) return;
-      const nextDrafts = {
-        ...(state.assignLetterDraftByClass || {}),
-        [classId]: letter,
-      };
-      state.assignLetterDraftByClass = nextDrafts;
-      if (ui.sessionError) {
-        ui.sessionError.textContent = `Brouillon: ${cls.name} -> ${parts.prefix}${letter}. Validation globale en attente.`;
-        ui.sessionError.className = "error-text hours-ok";
-      }
-      renderGlobalPlanner();
-    });
-  });
+  // Event binding is now handled in renderAssignLettersTableView
+  // This function is kept for backward compatibility but does nothing
 }
 
 function parseAssignPayload(payload) {
@@ -6748,48 +6737,13 @@ async function reviewReplacementOffer(offerId, decision) {
           })
         )
       );
-
-      // Envoyer les notifications par email aux candidats
-      try {
-        const sendReplacementNotifications = firebase.functions().httpsCallable('sendReplacementNotifications');
-        await sendReplacementNotifications({
-          absenceId: offer.absenceId,
-          sessionId: offer.sessionId,
-          acceptedOfferId: offerId
-        });
-        console.log('📧 Notifications de remplacement envoyées');
-      } catch (emailError) {
-        console.error('Erreur envoi emails remplacement:', emailError);
-      }
-
       ui.absenceHint.textContent = "Candidature acceptée et remplacement planifié.";
       return;
     }
-    // Récupérer tous les candidats pour cette absence et session
-    const allOffers = state.replacementOffers.filter(
-      (o) => o.absenceId === offer.absenceId && o.sessionId === offer.sessionId
-    );
-
     await updateDoc(doc(db, "replacementOffers", offerId), {
       status: "REJECTED",
       updatedAt: serverTimestamp(),
     });
-
-    // Envoyer les notifications par email aux candidats
-    try {
-      const sendReplacementNotifications = firebase.functions().httpsCallable('sendReplacementNotifications');
-      // Trouver si une autre offre a été acceptée
-      const acceptedOffer = allOffers.find(o => o.id !== offerId && o.status === 'ACCEPTED');
-      await sendReplacementNotifications({
-        absenceId: offer.absenceId,
-        sessionId: offer.sessionId,
-        acceptedOfferId: acceptedOffer?.id || null
-      });
-      console.log('📧 Notifications de remplacement envoyées');
-    } catch (emailError) {
-      console.error('Erreur envoi emails remplacement:', emailError);
-    }
-
     ui.absenceHint.textContent = "Candidature rejetée.";
   } catch (error) {
     ui.absenceHint.textContent = `Erreur décision candidature: ${error?.message || "mise à jour impossible."}`;
@@ -7963,19 +7917,14 @@ function renderRightsPanel() {
         });
       }
 
-      console.log("Saving rights for teacher:", teacherId);
-      console.log("Permissions to save:", permissions);
-
       try {
         await setDoc(doc(db, "userRights", teacherId), {
           id: teacherId,
           permissions,
           updatedAt: serverTimestamp(),
         }, { merge: true });
-        console.log("Rights saved successfully");
         ui.sessionError.textContent = "Droits mis à jour.";
       } catch (error) {
-        console.error("Error saving rights:", error);
         ui.sessionError.textContent = "Erreur de sauvegarde : " + error.message;
       }
     });
@@ -8166,26 +8115,16 @@ function renderProgrammingPanel() {
     ui.programFilterTeacher.value = currentTeacherId;
   }
 
-  // Remplir le select des périodes (basé sur les classes biweekly vs full-year)
+  // Remplir le select des périodes
   if (ui.programFilterPeriod) {
     const currentPeriodId = ui.programFilterPeriod.value;
-    const hasTrimesters = state.programPeriods?.t1Start && state.programPeriods?.t1End;
-    const hasSemesters = state.programPeriods?.s1Start && state.programPeriods?.s1End;
-
-    const periodOptions = [];
-    if (hasTrimesters) {
-      periodOptions.push(['T1', 'Trimestre 1']);
-      periodOptions.push(['T2', 'Trimestre 2']);
-      periodOptions.push(['T3', 'Trimestre 3']);
-    }
-    if (hasSemesters) {
-      periodOptions.push(['S1', 'Semestre 1']);
-      periodOptions.push(['S2', 'Semestre 2']);
-    }
-
+    const periodIds = [...new Set(visibleSessions.map(s => s.periodId).filter(Boolean))];
     const options = '<option value="">Toutes les périodes</option>' +
-      periodOptions
-        .map(([id, name]) => `<option value="${id}">${name}</option>`)
+      periodIds
+        .map(pid => {
+          const period = state.periods.find(p => p.id === pid);
+          return `<option value="${pid}">${period?.name || pid}</option>`;
+        })
         .join('');
     ui.programFilterPeriod.innerHTML = options;
     ui.programFilterPeriod.value = currentPeriodId;
@@ -8199,17 +8138,7 @@ function renderProgrammingPanel() {
     visibleSessions = visibleSessions.filter(s => s.teacherId === selectedTeacher);
   }
   if (selectedPeriod) {
-    // Filtrer par type de période (Trimestre vs Semestre)
-    const isSemester = selectedPeriod.startsWith('S');
-    visibleSessions = visibleSessions.filter(s => {
-      if (isSemester) {
-        // Les semestres concernent les classes biweekly
-        return isClassBiweeklyProfile(s.classId);
-      } else {
-        // Les trimestres concernent les classes full-year
-        return !isClassBiweeklyProfile(s.classId);
-      }
-    });
+    visibleSessions = visibleSessions.filter(s => s.periodId === selectedPeriod);
   }
 
   // Ajouter les event listeners
@@ -8308,8 +8237,8 @@ function renderProgrammingPanel() {
   ui.programLocationsList.innerHTML = locationItems || `<p class="slot-picker-empty">Aucun lieu</p>`;
 
   renderProgramPeriodsPanel();
-  renderProgramClassPlans(activities, visibleSessions);
-  renderProgramAnnualVisual(activities, locations, visibleSessions);
+  renderProgramClassPlans(activities);
+  renderProgramAnnualVisual(activities, locations);
 
   bindProgrammingActions();
 }
@@ -8348,9 +8277,9 @@ function getProgramPlanLabelsByClassId(classId) {
   };
 }
 
-function renderProgramAnnualVisual(activities, locations, filteredSessions = null) {
+function renderProgramAnnualVisual(activities, locations) {
   if (!ui.programAnnualVisualContainer) return;
-  const sessions = [...(filteredSessions || getCurrentClassSessions())].sort((a, b) => {
+  const sessions = [...getCurrentClassSessions()].sort((a, b) => {
     const dayCmp = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
     if (dayCmp !== 0) return dayCmp;
     const slotCmp = String(a.start || "").localeCompare(String(b.start || ""), "fr");
@@ -8531,19 +8460,7 @@ function bindProgramAnnualVisualActions() {
   ui.programAnnualVisualContainer.querySelectorAll("[data-program-mode-select]").forEach((sel) => {
     const classId = String(sel.dataset.programModeSelect || "").trim();
     if (!classId) return;
-    const plan = getClassActivityPlan(classId);
-    let defaultMode = "";
-    if (!plan?.modeOverride) {
-      // Set default based on class type
-      if (classId === "__AS__" || String(classId || "").startsWith("__AS")) {
-        defaultMode = "YEAR";
-      } else if (isClassBiweeklyProfile(classId)) {
-        defaultMode = "SEMESTER";
-      } else {
-        defaultMode = "TRIMESTER";
-      }
-    }
-    sel.value = String(plan?.modeOverride || defaultMode);
+    sel.value = String(getClassActivityPlan(classId)?.modeOverride || "");
     sel.addEventListener("change", async () => {
       const modeOverride = sel.value || null;
       try {
@@ -10205,20 +10122,12 @@ function renderPublicAbsenceRequests(week) {
     ui.publicOpenReplacementModalBtn.disabled = !canUse;
     ui.publicOpenReplacementModalBtn.title = canUse ? "Afficher mon EDT et mes opportunités" : "Connectez-vous en mode enseignant";
   }
-
-  // Collect all absences that have not yet ended and match any sessions
-  const absentEntries = state.sessions
+  const vacationDays = getVacationDaySetForWeek(week?.weekStart);
+  const weekSessions = state.sessions.filter((s) => isSessionVisibleForWeek(s, week.weekType) && !vacationDays.has(String(s.day || "")));
+  const absentEntries = weekSessions
     .map((session) => {
-      // Check if this session has ANY active absence (not just for this week)
-      const absence = state.absences.find((a) =>
-        a.teacherId === session.teacherId &&
-        session.classId &&
-        !session.classId.startsWith('__') &&
-        new Date(a.startDate) <= new Date() &&
-        new Date(a.endDate) >= new Date()
-      );
+      const absence = isSessionAbsentForWeek(session, week.weekStart);
       if (!absence) return null;
-
       const absentTeacher = state.teachers.find((t) => t.id === session.teacherId);
       const replacement = state.replacements.find((r) => r.absenceId === absence.id && r.sessionId === session.id);
       const replacementTeacher = state.teachers.find((t) => t.id === replacement?.toTeacherId);
@@ -10228,14 +10137,10 @@ function renderPublicAbsenceRequests(week) {
       return { session, absence, absentTeacher, replacementTeacher, offersCount: offers.length };
     })
     .filter(Boolean)
-    .sort((a, b) => {
-      const dateCompare = new Date(a.absence.startDate) - new Date(b.absence.startDate);
-      if (dateCompare !== 0) return dateCompare;
-      return DAYS.indexOf(a.session.day) - DAYS.indexOf(b.session.day) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr");
-    });
+    .sort((a, b) => DAYS.indexOf(a.session.day) - DAYS.indexOf(b.session.day) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr"));
 
   if (!absentEntries.length) {
-    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée.</span>`;
+    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée sur cette semaine.</span>`;
     ui.publicAbsenceRequestsContainer.innerHTML = `<p class="summary-box">Aucun créneau absent.</p>`;
     return;
   }
@@ -10280,7 +10185,7 @@ function renderPublicAbsenceRequests(week) {
     })
     .join("");
 
-  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence.`;
+  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence sur cette semaine.`;
   ui.publicAbsenceRequestsContainer.innerHTML = `
     <table class="absence-table public-absence-table">
       <thead>
@@ -10723,15 +10628,7 @@ function renderPublic() {
 
       const timeStr = `${sessionStart} - ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
 
-      // Afficher le modal au lieu d'une alert
-      if (ui.publicSessionModal) {
-        if (ui.publicSessionModalClass) ui.publicSessionModalClass.textContent = sessionClass;
-        if (ui.publicSessionModalProf) ui.publicSessionModalProf.textContent = sessionProf;
-        if (ui.publicSessionModalActivity) ui.publicSessionModalActivity.textContent = sessionActivity;
-        if (ui.publicSessionModalCode) ui.publicSessionModalCode.textContent = sessionCode;
-        if (ui.publicSessionModalTime) ui.publicSessionModalTime.textContent = timeStr;
-        ui.publicSessionModal.classList.remove("hidden");
-      }
+      alert(`Classe: ${sessionClass}\nProf: ${sessionProf}\nActivité: ${sessionActivity} (${sessionCode})\nHoraire: ${timeStr}`);
     });
   });
 
@@ -11032,6 +10929,13 @@ function renderGlobalPlanner() {
   if (ui.assignEditLettersBtn) {
     ui.assignEditLettersBtn.textContent = state.assignLettersEditMode ? "Valider les lettres" : "Changer les lettres";
   }
+
+  // If in letter edit mode, show table instead of grid
+  if (state.assignLettersEditMode) {
+    renderAssignLettersTableView();
+    return;
+  }
+
   const weekType = "A";
   const layout = state.selectedGlobalPlannerLayout === "EXCEL" ? "EXCEL" : "GRID";
   if (ui.globalWeekType) ui.globalWeekType.value = weekType;
@@ -11123,13 +11027,6 @@ function renderGlobalPlanner() {
         if (conflict) cellConflict = true;
         const baseClass = "slot-block global-stacked-block";
         const segClass = getSessionSegmentClassName(e);
-        const canEditLetter =
-          state.assignLettersEditMode &&
-          !isSpecialAssignmentId(e.classId) &&
-          Number(e.segmentIndex || 0) === 0;
-        const extraContent = canEditLetter
-          ? `<button class="secondary-btn mini-btn" data-edit-class-letter="${escapeHtml(e.classId)}" type="button" title="Changer la lettre">✎</button>`
-          : "";
         return renderSessionBlockHtml({
           sessionId: e.sessionId,
           text: e.label,
@@ -11138,7 +11035,7 @@ function renderGlobalPlanner() {
           className: `${baseClass}${segClass}${conflict ? " conflict-block" : ""}`,
           cadence: e.cadence,
           weekType: e.weekType,
-          extraContent,
+          extraContent: "",
           showContent: e.showContent !== false,
           showRemoveButton: e.showContent !== false,
         });
@@ -16848,45 +16745,6 @@ const DEFAULT_EMAIL_TEMPLATES = {
       </div>
     </body></html>`
   },
-  replacementDecision: {
-    name: "Décision de remplacement",
-    subject: "\${status} Votre candidature de remplacement",
-    html: `<html><body style="font-family: Arial, sans-serif; color: #333;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #002b5b; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-          <h1>Notification de Remplacement</h1>
-          <p>Lycée Vauban - EDT EPS</p>
-        </div>
-
-        <div style="background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-          <h2>Décision sur votre candidature</h2>
-
-          <div style="background: #127a44; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
-            <h3 style="margin: 0;">\${status}</h3>
-          </div>
-
-          <div style="background: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-            <p><strong>Période d'absence :</strong> \${absenceStartDate} au \${absenceEndDate}</p>
-            <p><strong>Créneau :</strong> \${sessionDay} de \${sessionStart} à \${sessionEnd}</p>
-            <p><strong>Niveau :</strong> \${level}</p>
-            <p><strong>Lieu :</strong> \${location}</p>
-          </div>
-
-          <div style="background: #d8f3ee; border-left: 4px solid #006b5f; padding: 15px; border-radius: 4px;">
-            <p style="margin: 0;"><strong>🎉 Félicitations !</strong> Votre candidature pour ce remplacement a été acceptée. Vous êtes désormais affecté à ce créneau.</p>
-          </div>
-
-          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-            Pour toute question, contactez l'administration.
-          </p>
-        </div>
-
-        <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <p>EDT EPS Vauban © 2026</p>
-        </div>
-      </div>
-    </body></html>`
-  },
   edtInvitation: {
     name: "Invitation à consulter l'EDT",
     subject: "📅 Votre emploi du temps ${schoolYear} est disponible",
@@ -16971,23 +16829,12 @@ async function loadEmailTemplate() {
 function updateEmailTemplatePreview() {
   const code = ui.emailTemplateCode.value;
   if (ui.emailTemplatePreview) {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
     ui.emailTemplatePreview.innerHTML = code
       .replace(/\$\{name\}/g, "Jean Dupont")
       .replace(/\$\{title\}/g, "Titre de l'exemple")
       .replace(/\$\{schoolYear\}/g, getActiveSchoolYearId())
-      .replace(/\$\{date\}/g, today.toLocaleDateString("fr-FR"))
-      .replace(/\$\{status\}/g, "✅ ACCEPTÉE")
-      .replace(/\$\{absenceStartDate\}/g, today.toLocaleDateString("fr-FR"))
-      .replace(/\$\{absenceEndDate\}/g, tomorrow.toLocaleDateString("fr-FR"))
-      .replace(/\$\{sessionDay\}/g, "Lundi")
-      .replace(/\$\{sessionStart\}/g, "08:15")
-      .replace(/\$\{sessionEnd\}/g, "10:00")
-      .replace(/\$\{level\}/g, "Sixième")
-      .replace(/\$\{location\}/g, "Salle 301");
+      .replace(/\$\{date\}/g, new Date().toLocaleDateString("fr-FR"))
+      .replace(/\$\{status\}/g, "En cours");
   }
 }
 
