@@ -5857,7 +5857,7 @@ function buildAssignLetterPreviewMap(drafts = state.assignLetterDraftByClass || 
     const targetSibling = siblings.find((entry) => entry.cls.id !== classId && entry.currentLetter === targetLetter);
 
     nextNameByClass.set(classId, `${parts.prefix}${targetLetter}`);
-    if (targetSibling && parts.letter) {
+    if (targetSibling) {
       nextNameByClass.set(targetSibling.cls.id, `${parts.prefix}${parts.letter}`);
     }
   }
