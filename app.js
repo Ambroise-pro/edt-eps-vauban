@@ -8458,12 +8458,12 @@ function renderProgramAnnualVisual(activities, locations) {
     const t1Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t1", "location", defaultLieu, s.id);
     const t2Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t2", "location", defaultLieu, s.id);
     const t3Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t3", "location", defaultLieu, s.id);
-    const t1ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t1", "activity");
-    const t2ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t2", "activity");
-    const t3ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t3", "activity");
-    const t1LocationMeta = getAnnualPlanFieldMeta(s.classId, "t1", "location");
-    const t2LocationMeta = getAnnualPlanFieldMeta(s.classId, "t2", "location");
-    const t3LocationMeta = getAnnualPlanFieldMeta(s.classId, "t3", "location");
+    const t1ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t1", "activity", s.id);
+    const t2ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t2", "activity", s.id);
+    const t3ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t3", "activity", s.id);
+    const t1LocationMeta = getAnnualPlanFieldMeta(s.classId, "t1", "location", s.id);
+    const t2LocationMeta = getAnnualPlanFieldMeta(s.classId, "t2", "location", s.id);
+    const t3LocationMeta = getAnnualPlanFieldMeta(s.classId, "t3", "location", s.id);
     const pickCell = (kind, period, value, meta) => {
       if (!meta.enabled) {
         return `<span class="annual-readonly">—</span>`;
@@ -8483,7 +8483,7 @@ function renderProgramAnnualVisual(activities, locations) {
       >${escapeHtml(value || placeholder)}</button>`;
     };
     const isBiweekly = isClassBiweeklyProfile(s.classId);
-    const planMode = getClassPlanMode(s.classId);
+    const planMode = getClassPlanMode(s.classId, s.id);
 
     const teacherColor = getTeacherColorById(s.teacherId);
     // Les data-label portent l'en-tête de colonne sur chaque cellule : en mobile la
@@ -8541,7 +8541,7 @@ function renderProgramAnnualVisual(activities, locations) {
              </td>`
       }
       <td class="annual-mode-cell" data-label="Mode">
-        <select class="annual-mode-select" data-program-mode-select="${escapeHtml(s.classId)}">
+        <select class="annual-mode-select" data-program-mode-select="${escapeHtml(s.classId)}" data-session-id="${escapeHtml(s.id)}">
           <option value="">Auto</option>
           <option value="YEAR">Année</option>
           <option value="TRIMESTER">Trimestre</option>
@@ -8597,7 +8597,7 @@ function bindProgramAnnualVisualActions() {
       const day = String(btn.dataset.day || "").trim();
       const slot = String(btn.dataset.slot || "").trim();
       if (!classId || !periodKey || !kind) return;
-      const fieldMeta = getAnnualPlanFieldMeta(classId, periodKey, kind);
+      const fieldMeta = getAnnualPlanFieldMeta(classId, periodKey, kind, sessionId);
       if (!fieldMeta.enabled) return;
       openProgramPickModal({
         classId,
@@ -8611,22 +8611,41 @@ function bindProgramAnnualVisualActions() {
   });
   ui.programAnnualVisualContainer.querySelectorAll("[data-program-mode-select]").forEach((sel) => {
     const classId = String(sel.dataset.programModeSelect || "").trim();
+    const sessionId = String(sel.dataset.sessionId || "").trim();
     if (!classId) return;
-    sel.value = String(getClassActivityPlan(classId)?.modeOverride || "");
+    // Comme pour l'activité/la salle : un override choisi ici ne doit concerner que
+    // CE créneau (une classe de 4e/3e peut avoir un cours hebdo et un cours une semaine
+    // sur deux — voir getClassPlanMode). getPlanFieldValue lit prioritairement
+    // bySession[sessionId], avec repli sur l'override de niveau classe si absent.
+    const plan = getClassActivityPlan(classId);
+    sel.value = String((sessionId ? getPlanFieldValue(plan, sessionId, "modeOverride") : plan?.modeOverride) || "");
     sel.addEventListener("change", async () => {
       const modeOverride = sel.value || null;
+      const payload = {
+        classId,
+        schoolYearId: getActiveSchoolYearId(),
+        updatedAt: serverTimestamp(),
+      };
+      // Même piège que pour l'activité/la salle : une clé de premier niveau à points
+      // ("bySession.xyz.modeOverride") n'est PAS interprétée comme un chemin imbriqué par
+      // set(...,{merge:true}) — seule une vraie structure d'objet imbriquée l'est.
+      if (sessionId) {
+        payload.bySession = { [sessionId]: { modeOverride } };
+      } else {
+        payload.modeOverride = modeOverride;
+      }
       try {
-        await setDoc(doc(db, "classActivityPlans", getPlanDocId(classId)), {
-          classId,
-          modeOverride,
-          schoolYearId: getActiveSchoolYearId(),
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+        await setDoc(doc(db, "classActivityPlans", getPlanDocId(classId)), payload, { merge: true });
         let existingPlan = getClassActivityPlan(classId);
-        if (existingPlan) {
-          existingPlan.modeOverride = modeOverride;
+        if (!existingPlan) {
+          existingPlan = { id: classId, classId };
+          state.classActivityPlans.push(existingPlan);
+        }
+        if (sessionId) {
+          existingPlan.bySession = existingPlan.bySession || {};
+          existingPlan.bySession[sessionId] = { ...(existingPlan.bySession[sessionId] || {}), modeOverride };
         } else {
-          state.classActivityPlans.push({ id: classId, classId, modeOverride });
+          existingPlan.modeOverride = modeOverride;
         }
         renderProgrammingPanel();
       } catch (error) {
@@ -8636,10 +8655,29 @@ function bindProgramAnnualVisualActions() {
   });
 }
 
-function getClassPlanMode(classId) {
-  const override = String(getClassActivityPlan(classId)?.modeOverride || "").toUpperCase();
-  if (override === "YEAR" || override === "SEMESTER" || override === "TRIMESTER") return override;
+function getClassPlanMode(classId, sessionId = "") {
+  // Une classe de 4e/3e peut avoir un cours chaque semaine ET un cours une semaine sur
+  // deux (LEVEL_RULES: "2h hebdo + semaine A/B possible") : la cadence biweekly d'UN
+  // cours ne dit rien du mode qui convient à un AUTRE cours de la même classe. Le
+  // fallback "Auto" doit donc se baser sur la cadence du créneau précis quand on le
+  // connaît, pas sur .some() à travers tous les cours de la classe.
+  const plan = getClassActivityPlan(classId);
+  const sessionOverride = sessionId
+    ? String(plan?.bySession?.[sessionId]?.modeOverride || "").toUpperCase()
+    : "";
+  if (sessionOverride === "YEAR" || sessionOverride === "SEMESTER" || sessionOverride === "TRIMESTER") {
+    return sessionOverride;
+  }
+  const classOverride = String(plan?.modeOverride || "").toUpperCase();
+  if (classOverride === "YEAR" || classOverride === "SEMESTER" || classOverride === "TRIMESTER") {
+    return classOverride;
+  }
   if (String(classId || "").startsWith("__AS")) return "YEAR";
+  if (sessionId) {
+    const session = state.sessions.find((s) => s.id === sessionId);
+    if (session) return normalizeCadence(session.cadence) === "BIWEEKLY" ? "SEMESTER" : "TRIMESTER";
+  }
+  // Repli historique quand aucun sessionId n'est fourni (appelants pas encore migrés).
   if (isClassBiweeklyProfile(classId)) return "SEMESTER";
   return "TRIMESTER";
 }
@@ -8649,9 +8687,9 @@ function getPlanDocId(classId) {
   return id.startsWith("__") && id.endsWith("__") ? "plan_" + id.slice(2, -2) : id;
 }
 
-function getAnnualPlanFieldMeta(classId, periodKey, kind) {
+function getAnnualPlanFieldMeta(classId, periodKey, kind, sessionId = "") {
   const activity = kind === "activity";
-  const mode = getClassPlanMode(classId);
+  const mode = getClassPlanMode(classId, sessionId);
   const suffix = activity ? "ActivityLabel" : "LocationName";
   if (mode === "YEAR") {
     if (periodKey !== "t1") return { enabled: false, field: "", mode };
@@ -8685,7 +8723,7 @@ function getPlanFieldValue(plan, sessionId, field) {
 
 function getAnnualPlanDisplayValue(plan, classId, periodKey, kind, fallback = "", sessionId = "") {
   const activity = kind === "activity";
-  const mode = getClassPlanMode(classId);
+  const mode = getClassPlanMode(classId, sessionId);
   const suffix = activity ? "ActivityLabel" : "LocationName";
   const field = (p) => getPlanFieldValue(plan, sessionId, p);
   if (mode === "YEAR") {
@@ -8722,7 +8760,7 @@ function openProgramPickModal(context) {
   const day = String(context?.day || "");
   const slot = String(context?.slot || "");
   if (!classId || !periodKey || !kind) return;
-  const fieldMeta = getAnnualPlanFieldMeta(classId, periodKey, kind);
+  const fieldMeta = getAnnualPlanFieldMeta(classId, periodKey, kind, sessionId);
   if (!fieldMeta.enabled) return;
 
   state.programPickContext = {
@@ -8846,7 +8884,7 @@ async function saveProgramPickValue(value) {
   if (ctx.kind === "activity" && value) {
     const activity = getProgramActivities().find((a) => a.label === value);
     const preferred = String(activity?.preferredLocationName || "").trim();
-    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location");
+    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location", ctx.sessionId);
     if (preferred && locationMeta.enabled && locationMeta.field) {
       autoPickedLocation = preferred;
     }
@@ -8876,7 +8914,7 @@ async function saveProgramPickValue(value) {
     }
   }
   if (autoPickedLocation) {
-    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location");
+    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location", ctx.sessionId);
     fields[locationMeta.field] = autoPickedLocation;
     if (ctx.mode === "YEAR") {
       fields.yearLocationName = autoPickedLocation;
