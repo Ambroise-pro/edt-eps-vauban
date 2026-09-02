@@ -8449,12 +8449,12 @@ function renderProgramAnnualVisual(activities, locations) {
     const plan = getClassActivityPlan(s.classId) || {};
     const defaultLieu = String(s.locationName || "");
     const defaultAct = String(s.activityLabel || "");
-    const t1Activity = getAnnualPlanDisplayValue(plan, s.classId, "t1", "activity", defaultAct);
-    const t2Activity = getAnnualPlanDisplayValue(plan, s.classId, "t2", "activity", defaultAct);
-    const t3Activity = getAnnualPlanDisplayValue(plan, s.classId, "t3", "activity", defaultAct);
-    const t1Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t1", "location", defaultLieu);
-    const t2Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t2", "location", defaultLieu);
-    const t3Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t3", "location", defaultLieu);
+    const t1Activity = getAnnualPlanDisplayValue(plan, s.classId, "t1", "activity", defaultAct, s.id);
+    const t2Activity = getAnnualPlanDisplayValue(plan, s.classId, "t2", "activity", defaultAct, s.id);
+    const t3Activity = getAnnualPlanDisplayValue(plan, s.classId, "t3", "activity", defaultAct, s.id);
+    const t1Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t1", "location", defaultLieu, s.id);
+    const t2Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t2", "location", defaultLieu, s.id);
+    const t3Lieu = getAnnualPlanDisplayValue(plan, s.classId, "t3", "location", defaultLieu, s.id);
     const t1ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t1", "activity");
     const t2ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t2", "activity");
     const t3ActivityMeta = getAnnualPlanFieldMeta(s.classId, "t3", "activity");
@@ -8472,6 +8472,7 @@ function renderProgramAnnualVisual(activities, locations) {
         type="button"
         data-program-pick-cell="1"
         data-class-id="${escapeHtml(s.classId)}"
+        data-session-id="${escapeHtml(s.id)}"
         data-period-key="${escapeHtml(period)}"
         data-kind="${escapeHtml(kind)}"
         data-day="${escapeHtml(s.day || "")}"
@@ -8587,6 +8588,7 @@ function bindProgramAnnualVisualActions() {
   ui.programAnnualVisualContainer.querySelectorAll("[data-program-pick-cell]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const classId = String(btn.dataset.classId || "").trim();
+      const sessionId = String(btn.dataset.sessionId || "").trim();
       const periodKey = String(btn.dataset.periodKey || "").trim();
       const kind = String(btn.dataset.kind || "").trim();
       const day = String(btn.dataset.day || "").trim();
@@ -8596,6 +8598,7 @@ function bindProgramAnnualVisualActions() {
       if (!fieldMeta.enabled) return;
       openProgramPickModal({
         classId,
+        sessionId,
         periodKey,
         kind,
         day,
@@ -8662,25 +8665,41 @@ function getAnnualPlanFieldMeta(classId, periodKey, kind) {
   return { enabled: false, field: "", mode };
 }
 
-function getAnnualPlanDisplayValue(plan, classId, periodKey, kind, fallback = "") {
+// Un plan (classActivityPlans/{classId}) porte des champs "hérités" au niveau classe
+// (t1ActivityLabel, ...), partagés par défaut par tous les créneaux hebdomadaires de la
+// classe, et un objet bySession[sessionId] qui permet à un créneau précis (ex: le lundi)
+// de s'écarter de cette valeur par défaut sans affecter les autres créneaux de la même
+// classe (ex: le jeudi). Toute fiche déjà existante n'a pas de bySession : elle continue
+// donc de fonctionner à l'identique tant qu'aucun créneau n'a été édité individuellement.
+function getPlanFieldValue(plan, sessionId, field) {
+  if (!plan) return null;
+  if (sessionId) {
+    const bySession = plan.bySession?.[sessionId];
+    if (bySession && bySession[field] != null) return bySession[field];
+  }
+  return plan[field] ?? null;
+}
+
+function getAnnualPlanDisplayValue(plan, classId, periodKey, kind, fallback = "", sessionId = "") {
   const activity = kind === "activity";
   const mode = getClassPlanMode(classId);
   const suffix = activity ? "ActivityLabel" : "LocationName";
+  const field = (p) => getPlanFieldValue(plan, sessionId, p);
   if (mode === "YEAR") {
     // Pour l'AS, on affiche la valeur annuelle partout si elle existe
-    return String(plan[`year${suffix}`] || plan[`t1${suffix}`] || fallback || "");
+    return String(field(`year${suffix}`) || field(`t1${suffix}`) || fallback || "");
   }
   if (mode === "SEMESTER") {
     if (periodKey === "t1") {
-      return String(plan[`s1${suffix}`] || plan[`t1${suffix}`] || fallback || "");
+      return String(field(`s1${suffix}`) || field(`t1${suffix}`) || fallback || "");
     }
     if (periodKey === "t2") {
-      return String(plan[`s2${suffix}`] || plan[`t2${suffix}`] || fallback || "");
+      return String(field(`s2${suffix}`) || field(`t2${suffix}`) || fallback || "");
     }
     return "";
   }
   if (periodKey === "t1" || periodKey === "t2" || periodKey === "t3") {
-    return String(plan[`${periodKey}${suffix}`] || fallback || "");
+    return String(field(`${periodKey}${suffix}`) || fallback || "");
   }
   return "";
 }
@@ -8694,14 +8713,18 @@ function closeProgramPickModal() {
 function openProgramPickModal(context) {
   if (!ui.programPickModal || !ui.programPickModalList || !ui.programPickModalTitle || !ui.programPickModalContext) return;
   const classId = String(context?.classId || "");
+  const sessionId = String(context?.sessionId || "");
   const periodKey = String(context?.periodKey || "");
   const kind = String(context?.kind || "");
+  const day = String(context?.day || "");
+  const slot = String(context?.slot || "");
   if (!classId || !periodKey || !kind) return;
   const fieldMeta = getAnnualPlanFieldMeta(classId, periodKey, kind);
   if (!fieldMeta.enabled) return;
 
   state.programPickContext = {
     classId,
+    sessionId,
     periodKey,
     kind,
     field: fieldMeta.field,
@@ -8712,10 +8735,14 @@ function openProgramPickModal(context) {
     kind === "activity"
       ? getProgramActivities().map((a) => ({ value: a.label, label: a.label, sub: a.code }))
       : getProgramLocations().map((l) => ({ value: l.name, label: l.name, sub: "" }));
-  
+
   const classLabel = getClassLabelById(classId);
+  // Le jour/creneau est affiché pour rappeler que ce choix ne concerne que CE cours :
+  // une classe avec deux cours dans la semaine peut avoir une activité différente sur
+  // chacun, indépendamment l'un de l'autre.
+  const slotSuffix = day && slot ? ` (${day} ${slot})` : "";
   ui.programPickModalTitle.textContent = kind === "activity" ? "Choisir une activité" : "Choisir une salle";
-  ui.programPickModalContext.textContent = `${classLabel} · Période ${periodKey.slice(1)}`;
+  ui.programPickModalContext.textContent = `${classLabel}${slotSuffix} · Période ${periodKey.slice(1)}`;
 
   const normalizeStr = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -8809,12 +8836,8 @@ function openProgramPickModal(context) {
 
 async function saveProgramPickValue(value) {
   const ctx = state.programPickContext;
-  console.log('saveProgramPickValue called with value:', value, 'ctx:', ctx);
-  if (!ctx?.classId || !ctx.field) {
-    console.log('Context missing');
-    return;
-  }
-  
+  if (!ctx?.classId || !ctx.field) return;
+
   // Détection de conflits de salle
   let autoPickedLocation = "";
   if (ctx.kind === "activity" && value) {
@@ -8828,10 +8851,33 @@ async function saveProgramPickValue(value) {
 
   const locationToVerify = ctx.kind === "location" ? value : autoPickedLocation;
   if (locationToVerify) {
-    const conflicts = getAnnualPeriodLocationConflicts(ctx.classId, ctx.periodKey, locationToVerify);
+    const conflicts = getAnnualPeriodLocationConflicts(ctx.classId, ctx.periodKey, locationToVerify, ctx.sessionId);
     if (conflicts.length) {
       const confirmed = confirm(`ALERTE CONFLIT :\nLa salle "${locationToVerify}" est déjà occupée sur ces créneaux par :\n- ${conflicts.join("\n- ")}\n\nVoulez-vous quand même enregistrer ce choix ?`);
       if (!confirmed) return;
+    }
+  }
+
+  // Champs à écrire pour ce créneau précis (avant de savoir où ils atterrissent :
+  // au niveau classe pour compatibilité, ou sous bySession[sessionId] si on connaît
+  // le créneau exact — voir plus bas).
+  const fields = { [ctx.field]: value || null };
+  if (ctx.mode === "YEAR") {
+    if (ctx.kind === "activity") {
+      fields.yearActivityLabel = value || null;
+      fields.t1ActivityLabel = value || null;
+    }
+    if (ctx.kind === "location") {
+      fields.yearLocationName = value || null;
+      fields.t1LocationName = value || null;
+    }
+  }
+  if (autoPickedLocation) {
+    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location");
+    fields[locationMeta.field] = autoPickedLocation;
+    if (ctx.mode === "YEAR") {
+      fields.yearLocationName = autoPickedLocation;
+      fields.t1LocationName = autoPickedLocation;
     }
   }
 
@@ -8839,58 +8885,51 @@ async function saveProgramPickValue(value) {
     classId: ctx.classId,
     mode: ctx.mode,
     schoolYearId: getActiveSchoolYearId(),
-    [ctx.field]: value || null,
     updatedAt: serverTimestamp(),
   };
 
-  if (ctx.mode === "YEAR") {
-    if (ctx.kind === "activity") {
-      payload.yearActivityLabel = value || null;
-      payload.t1ActivityLabel = value || null;
+  // Une classe avec deux cours dans la semaine (ex: lundi et jeudi) ne doit pas voir
+  // l'un affecté par la programmation de l'autre. Dès que le créneau précis est connu,
+  // les valeurs vont donc UNIQUEMENT sous bySession[sessionId] — jamais aussi au niveau
+  // classe, sinon ce niveau classe redeviendrait la valeur de repli lue par l'AUTRE
+  // créneau (voir getPlanFieldValue) et le bug réapparaîtrait sous une autre forme.
+  // Le niveau classe n'est donc écrit ici que si, exceptionnellement, aucun sessionId
+  // n'est disponible ; il reste sinon la valeur héritée par tout créneau plus ancien
+  // jamais encore édité individuellement, et celle que modifie l'outil "Plan par classe".
+  if (ctx.sessionId) {
+    for (const [field, val] of Object.entries(fields)) {
+      payload[`bySession.${ctx.sessionId}.${field}`] = val;
     }
-    if (ctx.kind === "location") {
-      payload.yearLocationName = value || null;
-      payload.t1LocationName = value || null;
-    }
-  }
-
-  if (autoPickedLocation) {
-    const locationMeta = getAnnualPlanFieldMeta(ctx.classId, ctx.periodKey, "location");
-    payload[locationMeta.field] = autoPickedLocation;
-    if (ctx.mode === "YEAR") {
-      payload.yearLocationName = autoPickedLocation;
-      payload.t1LocationName = autoPickedLocation;
-    }
+  } else {
+    Object.assign(payload, fields);
   }
 
   try {
-    console.log('Saving payload:', payload);
     await setDoc(doc(db, "classActivityPlans", getPlanDocId(ctx.classId)), payload, { merge: true });
-    console.log('Sauvegarde réussie');
 
-    // Mettre à jour l'état local immédiatement
+    // Mettre à jour l'état local immédiatement (structure imbriquée, pas les clés
+    // à points telles qu'envoyées à Firestore) — même logique que ci-dessus.
     let existingPlan = state.classActivityPlans.find((p) => p.classId === ctx.classId);
     if (!existingPlan) {
       existingPlan = state.classActivityPlans.find((p) => p.id === ctx.classId);
     }
-
-    if (existingPlan) {
-      Object.assign(existingPlan, payload);
-      console.log('Plan existant mis à jour');
+    if (!existingPlan) {
+      existingPlan = { id: ctx.classId, classId: ctx.classId };
+      state.classActivityPlans.push(existingPlan);
+    }
+    existingPlan.classId = ctx.classId;
+    existingPlan.mode = ctx.mode;
+    if (ctx.sessionId) {
+      existingPlan.bySession = existingPlan.bySession || {};
+      existingPlan.bySession[ctx.sessionId] = { ...(existingPlan.bySession[ctx.sessionId] || {}), ...fields };
     } else {
-      const newPlan = { id: ctx.classId, classId: ctx.classId, ...payload };
-      state.classActivityPlans.push(newPlan);
-      console.log('Nouveau plan créé:', newPlan);
+      Object.assign(existingPlan, fields);
     }
 
     ui.sessionError.textContent = "Programmation enregistrée (par trimestre).";
     closeProgramPickModal();
-
-    // Rafraîchir immédiatement sans délai
     renderProgrammingPanel();
-    console.log('Panel rafraîchi');
   } catch (error) {
-    console.error('Erreur sauvegarde:', error);
     ui.sessionError.textContent = "Erreur de sauvegarde : " + error.message;
   }
 }
@@ -9803,7 +9842,7 @@ function getBusyLocationsForSlot(day, slot, weekType) {
 function getPlannedLocationForSessionPeriod(session, periodKey) {
   const plan = getClassActivityPlan(session.classId) || {};
   return String(
-    getAnnualPlanDisplayValue(plan, session.classId, periodKey, "location", String(session.locationName || "")) || ""
+    getAnnualPlanDisplayValue(plan, session.classId, periodKey, "location", String(session.locationName || ""), session.id) || ""
   ).trim();
 }
 
@@ -9831,11 +9870,17 @@ async function syncASPlanFromSession(session, update) {
 }
 
 
-function getAnnualPeriodLocationConflicts(classId, periodKey, locationName) {
+function getAnnualPeriodLocationConflicts(classId, periodKey, locationName, sessionId = "") {
   const targetLocation = String(locationName || "").trim();
   if (!classId || !periodKey || !targetLocation) return [];
   const sessions = getCurrentClassSessions();
-  const targets = sessions.filter((s) => s.classId === classId);
+  // La salle n'est désormais affectée qu'au créneau précis édité (voir saveProgramPickValue) :
+  // ne vérifier les chevauchements que pour CE créneau, pas pour tous les cours hebdomadaires
+  // de la classe — sinon une alerte de conflit pourrait apparaître pour un autre créneau
+  // (ex: jeudi) alors que la salle n'est même pas affectée à ce créneau-là.
+  const targets = sessionId
+    ? sessions.filter((s) => s.id === sessionId)
+    : sessions.filter((s) => s.classId === classId);
   if (!targets.length) return [];
 
   const details = [];
@@ -10528,7 +10573,7 @@ function renderPublic() {
       if (currentTrimester) {
         const plan = getClassActivityPlan(s.classId);
         if (plan) {
-          const planned = getAnnualPlanDisplayValue(plan, s.classId, currentTrimester, "activity", "");
+          const planned = getAnnualPlanDisplayValue(plan, s.classId, currentTrimester, "activity", "", s.id);
           if (planned) {
             // Créer une copie avec l'activité programmée pour la période actuelle
             return { ...s, activityLabel: planned };
