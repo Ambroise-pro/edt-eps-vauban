@@ -2303,6 +2303,23 @@ fieldset {
   margin-bottom: 1rem;
 }
 
+.program-filter-mine {
+  margin-bottom: 1rem;
+}
+
+.program-filter-mine label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.program-filter-mine input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
 .program-annual-table {
   min-width: 1200px;
   border-collapse: collapse;
