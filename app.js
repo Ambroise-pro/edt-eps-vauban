@@ -8896,10 +8896,15 @@ async function saveProgramPickValue(value) {
   // Le niveau classe n'est donc écrit ici que si, exceptionnellement, aucun sessionId
   // n'est disponible ; il reste sinon la valeur héritée par tout créneau plus ancien
   // jamais encore édité individuellement, et celle que modifie l'outil "Plan par classe".
+  //
+  // IMPORTANT : set(..., {merge:true}) ne traite PAS une clé de premier niveau contenant
+  // des points (ex: "bySession.xyz.champ") comme un chemin imbriqué — le SDK Firestore
+  // crée alors un champ plat dont le nom littéral contient des points, jamais lu par
+  // plan.bySession?.[sessionId]. Seule une STRUCTURE d'objet réellement imbriquée est
+  // parcourue récursivement par le parseur pour construire un masque de champs ciblé
+  // (bySession.<sessionId>.<champ>), qui préserve les autres sessionId déjà présents.
   if (ctx.sessionId) {
-    for (const [field, val] of Object.entries(fields)) {
-      payload[`bySession.${ctx.sessionId}.${field}`] = val;
-    }
+    payload.bySession = { [ctx.sessionId]: fields };
   } else {
     Object.assign(payload, fields);
   }
