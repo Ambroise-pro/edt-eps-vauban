@@ -8444,7 +8444,7 @@ function renderProgramAnnualVisual(activities, locations) {
       rows.push(`<tr class="program-annual-day-row"><td colspan="10">${escapeHtml(currentDay)}</td></tr>`);
     }
     const teacher = state.teachers.find((t) => t.id === s.teacherId);
-    const band = getBandForSlot(s.start);
+    const band = getBandForSlot(s.start, s.day);
     const bandLabel = band ? formatProgramBandRange(band.start, band.end) : String(s.start || "");
     const bandStart = String(band?.start || s.start || "");
     const slotStartClass = bandStart !== currentBandStart ? " annual-slot-group-start" : "";
@@ -9720,7 +9720,7 @@ async function copyBusEmailText() {
 
 function renderProgramSessionRow(session, activities, locations, bandStart, segment = "full") {
   const teacher = state.teachers.find((t) => t.id === session.teacherId);
-  const startBand = getBandForSlot(session.start);
+  const startBand = getBandForSlot(session.start, session.day);
   const isStartSlot = startBand ? startBand.start === bandStart : String(session.start || "") === String(bandStart || "");
   const isOneHourSession = Number(session.duration || 0) <= 1;
   const activityText = session.activityLabel || "Activité non définie";
@@ -9823,7 +9823,7 @@ function getLocationConflictsForSession(sessionId, locationName) {
 
   return list.map((s) => {
     const teacher = state.teachers.find((t) => t.id === s.teacherId);
-    const band = getBandForSlot(s.start);
+    const band = getBandForSlot(s.start, s.day);
     const range = band ? formatProgramBandRange(band.start, band.end) : String(s.start || "");
     return `${s.day} ${range} - ${getClassLabelById(s.classId)} (${getTeacherDisplayLabel(teacher)})`;
   });
@@ -9831,7 +9831,7 @@ function getLocationConflictsForSession(sessionId, locationName) {
 
 function getBusyLocationsForSlot(day, slot, weekType) {
   const visibleSessions = getCurrentClassSessions().filter((s) => isSessionVisibleForWeek(s, weekType) && s.day === day);
-  const band = getBandForSlot(slot);
+  const band = getBandForSlot(slot, day);
   const targetKeys = (band ? band.slots : [slot]).map((s) => toSlotKey(day, s));
   const busy = new Map();
   for (const s of visibleSessions) {
@@ -9910,7 +9910,7 @@ function getAnnualPeriodLocationConflicts(classId, periodKey, locationName, sess
 
       const otherLocation = getPlannedLocationForSessionPeriod(other, periodKey);
       if (otherLocation !== targetLocation) continue;
-      const otherBand = getBandForSlot(other.start);
+      const otherBand = getBandForSlot(other.start, other.day);
       const otherRange = otherBand ? formatProgramBandRange(otherBand.start, otherBand.end) : String(other.start || "");
       details.push(`${other.day} ${otherRange} - ${getClassLabelById(other.classId)}`);
     }
@@ -12892,8 +12892,15 @@ function toSlotKey(day, slot) {
   return `${day}|${slot}`;
 }
 
-function getBandForSlot(slot) {
-  return SLOT_BANDS.find((b) => b.slots.includes(slot)) || null;
+function getBandForSlot(slot, day = "") {
+  // "16:05" appartient à deux bandes distinctes selon le jour : le bloc autonome
+  // Lun-Jeu "16h05 à 17h50", et le bloc vendredi "15h - 17h" (slots 15:00 + 16:05).
+  // Chercher dans SLOT_BANDS brut sans connaître le jour est ambigu et retombe sur la
+  // première entrée du tableau (le bloc vendredi), affichant "15h" pour un cours de
+  // lundi-jeudi. getSlotBandsForDay(day) lève déjà correctement cette ambiguïté ;
+  // day="" retombe sur les bandes Lun-Jeu (comportement historique par défaut).
+  const bands = day ? getSlotBandsForDay(day) : SLOT_BANDS.filter((b) => !b.fridayOnly);
+  return bands.find((b) => b.slots.includes(slot)) || null;
 }
 
 function getBandSlotStarts(band) {
@@ -13041,8 +13048,8 @@ async function reorderSessionsInSameSlot(draggedSessionId, targetSessionId) {
   if (!dragged || !target) return { ok: false, error: "Créneau introuvable." };
   if (dragged.id === target.id) return { ok: false, error: "Même créneau." };
 
-  const bandDragged = getBandForSlot(String(dragged.start || ""));
-  const bandTarget = getBandForSlot(String(target.start || ""));
+  const bandDragged = getBandForSlot(String(dragged.start || ""), dragged.day);
+  const bandTarget = getBandForSlot(String(target.start || ""), target.day);
   if (!bandDragged || !bandTarget) return { ok: false, error: "Tranche horaire introuvable." };
 
   const sameBucket =
@@ -13058,7 +13065,7 @@ async function reorderSessionsInSameSlot(draggedSessionId, targetSessionId) {
 
   const bucket = state.sessions
     .filter((s) => {
-      const b = getBandForSlot(String(s.start || ""));
+      const b = getBandForSlot(String(s.start || ""), s.day);
       return (
         String(s.teacherId || "") === String(dragged.teacherId || "") &&
         String(s.day || "") === String(dragged.day || "") &&
@@ -13305,7 +13312,7 @@ function buildManualOverrideSession(teacherId, classId, day, slot, weekType = "A
   const cadence = isBiweekly ? "BIWEEKLY" : "WEEKLY";
   const normalizedWeek = isBiweekly ? (pref === "WEEK_B" ? "B" : "A") : normalizeWeekType(weekType);
   if (special) {
-    const band = getBandForSlot(slot);
+    const band = getBandForSlot(slot, day);
     const asStart = band ? getBandSlotStarts(band)[0] : slot;
     return {
       teacherId,
@@ -14136,7 +14143,7 @@ function buildBestSessionProposal(teacherId, classId, day, slot, weekType, caden
   if (special) {
     const duration = special.type === "AS" ? 1 : 2;
     const normalizedPref = normalizeCadencePreference(cadencePreference);
-    const band = getBandForSlot(slot);
+    const band = getBandForSlot(slot, day);
     const candidateStarts =
       duration === 1 && band ? getBandSlotStarts(band) : [slot];
     const proposals = [];
@@ -14288,7 +14295,7 @@ function swimSlotDocId(day, slot, schoolYearId = getActiveSchoolYearId()) {
 
 async function toggleSwimSlot(day, slot) {
   if (!day || !slot) return;
-  const band = getBandForSlot(slot);
+  const band = getBandForSlot(slot, day);
   const targetSlots = band ? band.slots : [slot];
   const isMarked = targetSlots.every((s) => hasSwimSlot(day, s));
   if (isMarked) {
@@ -14422,7 +14429,7 @@ function desiderataDocId(teacherId, day, slot) {
 }
 
 function setDesiderataDraftStatus(day, slot, status) {
-  const band = getBandForSlot(slot);
+  const band = getBandForSlot(slot, day);
   const targetSlots = band ? band.slots : [slot];
   for (const s of targetSlots) {
     const key = rawSlotKey(day, s);
