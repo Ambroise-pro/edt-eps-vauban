@@ -391,6 +391,8 @@ const ui = {
   programHint: document.getElementById("programHint"),
   programFilterTeacher: document.getElementById("programFilterTeacher"),
   programFilterPeriod: document.getElementById("programFilterPeriod"),
+  programFilterMineWrap: document.getElementById("programFilterMineWrap"),
+  programFilterMineOnly: document.getElementById("programFilterMineOnly"),
   programAnnualVisualContainer: document.getElementById("programAnnualVisualContainer"),
   programPlannerContainer: document.getElementById("programPlannerContainer"),
   programActivitiesList: document.getElementById("programActivitiesList"),
@@ -8237,8 +8239,21 @@ function renderProgrammingPanel() {
     ui.programFilterPeriod.value = currentPeriodId;
   }
 
+  // "N'afficher que mes classes" : uniquement utile pour un utilisateur rattaché à une
+  // fiche enseignant. Quand coché, il prend la main sur le filtre "Filtrer par prof"
+  // (verrouillé sur l'utilisateur courant) plutôt que de s'y ajouter, pour éviter toute
+  // ambiguïté entre les deux réglages.
+  const hasOwnTeacherId = Boolean(state.currentUserTeacherId);
+  if (ui.programFilterMineWrap) {
+    ui.programFilterMineWrap.classList.toggle("hidden", !hasOwnTeacherId);
+  }
+  const mineOnly = hasOwnTeacherId && Boolean(ui.programFilterMineOnly?.checked);
+  if (ui.programFilterTeacher) {
+    ui.programFilterTeacher.disabled = mineOnly;
+  }
+
   // Appliquer les filtres
-  const selectedTeacher = ui.programFilterTeacher?.value;
+  const selectedTeacher = mineOnly ? state.currentUserTeacherId : ui.programFilterTeacher?.value;
   const selectedPeriod = ui.programFilterPeriod?.value;
 
   if (selectedTeacher) {
@@ -8256,6 +8271,10 @@ function renderProgrammingPanel() {
   if (ui.programFilterPeriod && !ui.programFilterPeriod._listenerAttached) {
     ui.programFilterPeriod.onchange = () => renderProgrammingPanel();
     ui.programFilterPeriod._listenerAttached = true;
+  }
+  if (ui.programFilterMineOnly && !ui.programFilterMineOnly._listenerAttached) {
+    ui.programFilterMineOnly.onchange = () => renderProgrammingPanel();
+    ui.programFilterMineOnly._listenerAttached = true;
   }
 
   const total = visibleSessions.length;
@@ -8377,7 +8396,10 @@ function renderProgrammingPanel() {
 
   renderProgramPeriodsPanel();
   renderProgramClassPlans(activities);
-  renderProgramAnnualVisual(activities, locations);
+  // visibleSessions porte déjà les filtres prof/période/"mes classes uniquement" :
+  // le tableau annuel doit refléter exactement ce que montrent les statistiques
+  // au-dessus, pas l'ensemble complet des créneaux.
+  renderProgramAnnualVisual(activities, locations, visibleSessions);
 
   bindProgrammingActions();
 }
@@ -8416,9 +8438,9 @@ function getProgramPlanLabelsByClassId(classId) {
   };
 }
 
-function renderProgramAnnualVisual(activities, locations) {
+function renderProgramAnnualVisual(activities, locations, sourceSessions = null) {
   if (!ui.programAnnualVisualContainer) return;
-  const sessions = [...getCurrentClassSessions()].sort((a, b) => {
+  const sessions = [...(sourceSessions || getCurrentClassSessions())].sort((a, b) => {
     const dayCmp = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
     if (dayCmp !== 0) return dayCmp;
     const slotCmp = String(a.start || "").localeCompare(String(b.start || ""), "fr");
