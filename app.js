@@ -51,7 +51,10 @@ const SLOT_BANDS = [
   { label: "10h20 à 12h05", start: "10:20", end: "12:05", slots: ["10:20", "11:10"] },
   { label: "12h10 à 13h00", start: "12:10", end: "13:00", slots: ["12:10"] },
   { label: "13h00 à 14h00", start: "13:00", end: "14:00", slots: ["13:00"] },
-  { label: "14h00 à 16h00", start: "14:00", end: "16:00", slots: ["14:00", "15:00"] },
+  // Fin réelle du bloc (14:00 puis 15:00, deux séances de 50 min) : 15h50, pas 16h00.
+  // "end" et "label" sont uniquement affichés (formatProgramBandRange) ; "start" reste
+  // "14:00" et sert aussi de clé de correspondance des séances (toSlotKey), à ne pas toucher.
+  { label: "14h00 à 15h50", start: "14:00", end: "15:50", slots: ["14:00", "15:00"] },
   // Bande "15:00" uniquement pour l'affichage vendredi (grille display).
   // Invisible sur Lun-Jeu (getSlotBandsForDay filtre fridayOnly).
   { label: "15h - 17h",     start: "15:00", end: "17:00", slots: ["15:00", "16:05"], fridayOnly: true },
