@@ -97,6 +97,7 @@ function getBandLabelForDay(band, day) {
 const SPECIAL_ASSIGNMENTS = [
   { id: "__AS__", label: "AS", type: "AS" },
   { id: "__DANSE__", label: "Danse", type: "DANSE" },
+  { id: "__PRIMAIRE__", label: "Primaire", type: "PRIMAIRE" },
 ];
 const LEVEL_RULES = {
   "Sixième": { weeklyHours: 4, hint: "6e: 4h/semaine (2 x 2h)", group: "SIXIEME" },
@@ -10638,9 +10639,11 @@ function renderPublic() {
   }
 
   const publicVisibleTeacherIds = new Set(state.teachers.filter((t) => !t.hiddenFromPublic).map((t) => t.id));
-  const sourceSessions = allMode
+  const isPublicHiddenSession = (s) => getSpecialAssignmentById(s.classId)?.type === "PRIMAIRE";
+  const sourceSessions = (allMode
     ? state.sessions.filter((s) => publicVisibleTeacherIds.has(s.teacherId))
-    : state.sessions.filter((s) => s.teacherId === teacher.id);
+    : state.sessions.filter((s) => s.teacherId === teacher.id)
+  ).filter((s) => !isPublicHiddenSession(s));
   const rawSessions = sourceSessions.filter((s) => isSessionVisibleForWeek(s, week.weekType));
   const rawReplacementEntries = getReplacementEntriesForWeek(week, allMode ? "" : teacher.id);
 
