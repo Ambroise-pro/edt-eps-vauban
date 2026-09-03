@@ -2161,6 +2161,13 @@ fieldset {
   gap: 0.8rem;
 }
 
+.program-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .danger-btn {
   background: #fff0f0;
   border: 1px solid #e0a0a0;
@@ -8091,6 +8098,14 @@ button:hover {
   .program-filters {
     grid-template-columns: 1fr;
     gap: 0.6rem;
+  }
+
+  .program-export-actions {
+    justify-content: stretch;
+  }
+
+  .program-export-actions button {
+    flex: 1 1 auto;
   }
 
   /* Les sous-onglets défilent au lieu de se comprimer */

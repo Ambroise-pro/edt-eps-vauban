@@ -405,6 +405,8 @@ const ui = {
   programAddActivityBtn: document.getElementById("programAddActivityBtn"),
   programHighlightPendingBtn: document.getElementById("programHighlightPendingBtn"),
   programResetPlanningBtn: document.getElementById("programResetPlanningBtn"),
+  programExportExcelBtn: document.getElementById("programExportExcelBtn"),
+  programExportImageBtn: document.getElementById("programExportImageBtn"),
   programLocationName: document.getElementById("programLocationName"),
   programAddLocationBtn: document.getElementById("programAddLocationBtn"),
   programStats: document.getElementById("programStats"),
@@ -1814,6 +1816,16 @@ function setupForms() {
     ui.programHighlightPendingBtn.addEventListener("click", () => {
       state.highlightPending = !state.highlightPending;
       render();
+    });
+  }
+  if (ui.programExportExcelBtn) {
+    ui.programExportExcelBtn.addEventListener("click", () => {
+      exportProgrammationExcel();
+    });
+  }
+  if (ui.programExportImageBtn) {
+    ui.programExportImageBtn.addEventListener("click", () => {
+      exportProgrammationImage();
     });
   }
   if (ui.programResetPlanningBtn) {
@@ -8460,11 +8472,13 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
   });
   if (!sessions.length) {
     ui.programAnnualVisualContainer.innerHTML = `<p class="slot-picker-empty">Aucun créneau pour générer la vue annuelle.</p>`;
+    state.programAnnualExportRows = [];
     return;
   }
 
   const seen = new Set();
   const rows = [];
+  const exportRows = [];
   let currentDay = "";
   let currentBandStart = "";
   for (const s of sessions) {
@@ -8529,6 +8543,21 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
           : { t1: "Trimestre 1", t2: "Trimestre 2", t3: "Trimestre 3" };
     const cellLabel = (period, kind) =>
       escapeHtml(`${periodLabel[period] || ""} · ${kind === "activity" ? "Activité" : "Lieu"}`);
+    const modeLabel =
+      planMode === "YEAR" ? "Année" : planMode === "SEMESTER" ? "Semestre" : "Trimestre";
+    exportRows.push([
+      s.day || "",
+      bandLabel,
+      getClassLabelById(s.classId),
+      getTeacherDisplayLabel(teacher),
+      t1ActivityMeta.enabled ? t1Activity : "",
+      t1LocationMeta.enabled ? t1Lieu : "",
+      t2ActivityMeta.enabled ? t2Activity : "",
+      t2LocationMeta.enabled ? t2Lieu : "",
+      t3ActivityMeta.enabled ? t3Activity : "",
+      t3LocationMeta.enabled ? t3Lieu : "",
+      modeLabel,
+    ]);
     rows.push(`<tr class="annual-slot-row annual-teacher-row${slotStartClass}" style="--annual-teacher-row-bg:${escapeHtml(`${teacherColor}22`)};--annual-teacher-row-border:${escapeHtml(teacherColor)};">
       <td data-label="Horaire">${escapeHtml(bandLabel)}</td>
       <td data-label="Classe">${escapeHtml(getClassLabelById(s.classId))}</td>
@@ -8584,6 +8613,8 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
     </tr>`);
   }
 
+  state.programAnnualExportRows = exportRows;
+
   ui.programAnnualVisualContainer.innerHTML = `
     <table class="program-annual-table">
       <tr class="annual-head">
@@ -8607,6 +8638,56 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
     </table>
   `;
   bindProgramAnnualVisualActions();
+}
+
+function exportProgrammationExcel() {
+  const rows = state.programAnnualExportRows || [];
+  if (!rows.length) {
+    showToast("Aucun créneau à exporter dans la programmation.", "error");
+    return;
+  }
+  const headers = [
+    "Jour", "Horaire", "Classe", "Prof",
+    "Trimestre 1 - Activité", "Trimestre 1 - Salle",
+    "Trimestre 2 - Activité", "Trimestre 2 - Salle",
+    "Trimestre 3 - Activité", "Trimestre 3 - Salle",
+    "Mode",
+  ];
+  const tableData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(tableData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Programmation");
+  ws["!cols"] = [10, 14, 16, 16, 18, 16, 18, 16, 18, 16, 12].map((width) => ({ wch: width }));
+  XLSX.writeFile(wb, `Programmation_${getActiveSchoolYearId()}.xlsx`);
+  showToast("✅ Fichier Excel de la programmation généré.", "success");
+}
+
+async function exportProgrammationImage() {
+  const container = ui.programAnnualVisualContainer;
+  if (!container || !container.querySelector("table")) {
+    showToast("Aucun créneau à exporter dans la programmation.", "error");
+    return;
+  }
+  try {
+    showToast("Génération de l'image en cours...", "info");
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+    });
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Programmation_${getActiveSchoolYearId()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("✅ Image de la programmation générée.", "success");
+  } catch (error) {
+    console.error("Erreur export image programmation:", error);
+    showToast("Erreur lors de la génération de l'image.", "error");
+  }
 }
 
 function formatProgramBandRange(start, end) {
@@ -9049,29 +9130,63 @@ function renderProgramPeriodsPanel() {
     : `<span>${hasTrimesters && !hasSemesters ? "Trimestres configurés, semestres incomplets." : "Renseignez les 3 trimestres et les 2 semestres."}</span>`;
 }
 
-function getCurrentTrimester() {
-  const today = new Date();
+function getTrimesterForDate(date) {
   const periods = state.programPeriods || {};
 
   if (periods.t1Start && periods.t1End) {
     const t1Start = new Date(periods.t1Start);
     const t1End = new Date(periods.t1End);
-    if (today >= t1Start && today <= t1End) return 't1';
+    if (date >= t1Start && date <= t1End) return 't1';
   }
 
   if (periods.t2Start && periods.t2End) {
     const t2Start = new Date(periods.t2Start);
     const t2End = new Date(periods.t2End);
-    if (today >= t2Start && today <= t2End) return 't2';
+    if (date >= t2Start && date <= t2End) return 't2';
   }
 
   if (periods.t3Start && periods.t3End) {
     const t3Start = new Date(periods.t3Start);
     const t3End = new Date(periods.t3End);
-    if (today >= t3Start && today <= t3End) return 't3';
+    if (date >= t3Start && date <= t3End) return 't3';
   }
 
   return null; // Pas dans une période définie
+}
+
+function getCurrentTrimester() {
+  return getTrimesterForDate(new Date());
+}
+
+// Les activités programmées sont toujours stockées sous les clés "t1"/"t2"/"t3",
+// y compris pour les classes en mode Semestre (S1 -> t1, S2 -> t2, voir
+// getProgramPlanLabelsByClassId / renderProgramAnnualVisual). Cette fonction
+// détermine donc, pour une classe en mode Semestre, quelle clé de stockage
+// correspond à la date consultée, en se basant sur les dates de semestre.
+function getSemesterPeriodKeyForDate(date) {
+  const periods = state.programPeriods || {};
+  if (periods.s1Start && periods.s1End) {
+    const s1Start = new Date(periods.s1Start);
+    const s1End = new Date(periods.s1End);
+    if (date >= s1Start && date <= s1End) return 't1';
+  }
+  if (periods.s2Start && periods.s2End) {
+    const s2Start = new Date(periods.s2Start);
+    const s2End = new Date(periods.s2End);
+    if (date >= s2Start && date <= s2End) return 't2';
+  }
+  return null;
+}
+
+// Détermine, pour une séance donnée, la clé de période ("t1"/"t2"/"t3") à utiliser
+// pour lire l'activité programmée à une date donnée: le mode (Année/Semestre/
+// Trimestre) dépend de la classe ET de la séance (voir getClassPlanMode), donc deux
+// séances de la même classe peuvent utiliser des dates de référence différentes.
+function getProgramPeriodKeyForSessionAtDate(session, date) {
+  const planMode = getClassPlanMode(session.classId, session.id);
+  if (planMode === "YEAR") return "t1";
+  if (planMode === "SEMESTER") return getSemesterPeriodKeyForDate(date);
+  return getTrimesterForDate(date);
 }
 
 function getClassActivityPlan(classId) {
@@ -10647,17 +10762,17 @@ function renderPublic() {
   const rawSessions = sourceSessions.filter((s) => isSessionVisibleForWeek(s, week.weekType));
   const rawReplacementEntries = getReplacementEntriesForWeek(week, allMode ? "" : teacher.id);
 
-  // Déterminer le trimestre actuel pour afficher les bonnes activités
-  const currentTrimester = getCurrentTrimester();
-
   const sessions = rawSessions
     .filter((s) => !vacationDays.has(String(s.day || "")))
     .map((s) => {
-      // Afficher l'activité du trimestre actuel si disponible
-      if (currentTrimester) {
+      // Afficher l'activité programmée à la date de la semaine consultée (pas celle du
+      // jour courant), en tenant compte du mode Année/Semestre/Trimestre propre à
+      // CETTE séance (voir getProgramPeriodKeyForSessionAtDate).
+      const periodKey = getProgramPeriodKeyForSessionAtDate(s, week.weekStart);
+      if (periodKey) {
         const plan = getClassActivityPlan(s.classId);
         if (plan) {
-          const planned = getAnnualPlanDisplayValue(plan, s.classId, currentTrimester, "activity", "", s.id);
+          const planned = getAnnualPlanDisplayValue(plan, s.classId, periodKey, "activity", "", s.id);
           if (planned) {
             // Créer une copie avec l'activité programmée pour la période actuelle
             return { ...s, activityLabel: planned };
