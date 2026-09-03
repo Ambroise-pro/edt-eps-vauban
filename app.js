@@ -9158,6 +9158,37 @@ function getCurrentTrimester() {
   return getTrimesterForDate(new Date());
 }
 
+// Les activités programmées sont toujours stockées sous les clés "t1"/"t2"/"t3",
+// y compris pour les classes en mode Semestre (S1 -> t1, S2 -> t2, voir
+// getProgramPlanLabelsByClassId / renderProgramAnnualVisual). Cette fonction
+// détermine donc, pour une classe en mode Semestre, quelle clé de stockage
+// correspond à la date consultée, en se basant sur les dates de semestre.
+function getSemesterPeriodKeyForDate(date) {
+  const periods = state.programPeriods || {};
+  if (periods.s1Start && periods.s1End) {
+    const s1Start = new Date(periods.s1Start);
+    const s1End = new Date(periods.s1End);
+    if (date >= s1Start && date <= s1End) return 't1';
+  }
+  if (periods.s2Start && periods.s2End) {
+    const s2Start = new Date(periods.s2Start);
+    const s2End = new Date(periods.s2End);
+    if (date >= s2Start && date <= s2End) return 't2';
+  }
+  return null;
+}
+
+// Détermine, pour une séance donnée, la clé de période ("t1"/"t2"/"t3") à utiliser
+// pour lire l'activité programmée à une date donnée: le mode (Année/Semestre/
+// Trimestre) dépend de la classe ET de la séance (voir getClassPlanMode), donc deux
+// séances de la même classe peuvent utiliser des dates de référence différentes.
+function getProgramPeriodKeyForSessionAtDate(session, date) {
+  const planMode = getClassPlanMode(session.classId, session.id);
+  if (planMode === "YEAR") return "t1";
+  if (planMode === "SEMESTER") return getSemesterPeriodKeyForDate(date);
+  return getTrimesterForDate(date);
+}
+
 function getClassActivityPlan(classId) {
   return state.classActivityPlans.find((x) => (x.classId || x.id) === classId) || null;
 }
@@ -10731,19 +10762,17 @@ function renderPublic() {
   const rawSessions = sourceSessions.filter((s) => isSessionVisibleForWeek(s, week.weekType));
   const rawReplacementEntries = getReplacementEntriesForWeek(week, allMode ? "" : teacher.id);
 
-  // Déterminer le trimestre de la semaine consultée (pas celui du jour courant) pour
-  // afficher les bonnes activités: naviguer vers une autre semaine doit refléter la
-  // période programmée à CETTE date, pas celle en cours aujourd'hui.
-  const currentTrimester = getTrimesterForDate(week.weekStart);
-
   const sessions = rawSessions
     .filter((s) => !vacationDays.has(String(s.day || "")))
     .map((s) => {
-      // Afficher l'activité du trimestre actuel si disponible
-      if (currentTrimester) {
+      // Afficher l'activité programmée à la date de la semaine consultée (pas celle du
+      // jour courant), en tenant compte du mode Année/Semestre/Trimestre propre à
+      // CETTE séance (voir getProgramPeriodKeyForSessionAtDate).
+      const periodKey = getProgramPeriodKeyForSessionAtDate(s, week.weekStart);
+      if (periodKey) {
         const plan = getClassActivityPlan(s.classId);
         if (plan) {
-          const planned = getAnnualPlanDisplayValue(plan, s.classId, currentTrimester, "activity", "", s.id);
+          const planned = getAnnualPlanDisplayValue(plan, s.classId, periodKey, "activity", "", s.id);
           if (planned) {
             // Créer une copie avec l'activité programmée pour la période actuelle
             return { ...s, activityLabel: planned };
