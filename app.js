@@ -9130,29 +9130,32 @@ function renderProgramPeriodsPanel() {
     : `<span>${hasTrimesters && !hasSemesters ? "Trimestres configurés, semestres incomplets." : "Renseignez les 3 trimestres et les 2 semestres."}</span>`;
 }
 
-function getCurrentTrimester() {
-  const today = new Date();
+function getTrimesterForDate(date) {
   const periods = state.programPeriods || {};
 
   if (periods.t1Start && periods.t1End) {
     const t1Start = new Date(periods.t1Start);
     const t1End = new Date(periods.t1End);
-    if (today >= t1Start && today <= t1End) return 't1';
+    if (date >= t1Start && date <= t1End) return 't1';
   }
 
   if (periods.t2Start && periods.t2End) {
     const t2Start = new Date(periods.t2Start);
     const t2End = new Date(periods.t2End);
-    if (today >= t2Start && today <= t2End) return 't2';
+    if (date >= t2Start && date <= t2End) return 't2';
   }
 
   if (periods.t3Start && periods.t3End) {
     const t3Start = new Date(periods.t3Start);
     const t3End = new Date(periods.t3End);
-    if (today >= t3Start && today <= t3End) return 't3';
+    if (date >= t3Start && date <= t3End) return 't3';
   }
 
   return null; // Pas dans une période définie
+}
+
+function getCurrentTrimester() {
+  return getTrimesterForDate(new Date());
 }
 
 function getClassActivityPlan(classId) {
@@ -10728,8 +10731,10 @@ function renderPublic() {
   const rawSessions = sourceSessions.filter((s) => isSessionVisibleForWeek(s, week.weekType));
   const rawReplacementEntries = getReplacementEntriesForWeek(week, allMode ? "" : teacher.id);
 
-  // Déterminer le trimestre actuel pour afficher les bonnes activités
-  const currentTrimester = getCurrentTrimester();
+  // Déterminer le trimestre de la semaine consultée (pas celui du jour courant) pour
+  // afficher les bonnes activités: naviguer vers une autre semaine doit refléter la
+  // période programmée à CETTE date, pas celle en cours aujourd'hui.
+  const currentTrimester = getTrimesterForDate(week.weekStart);
 
   const sessions = rawSessions
     .filter((s) => !vacationDays.has(String(s.day || "")))
