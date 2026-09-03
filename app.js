@@ -405,6 +405,8 @@ const ui = {
   programAddActivityBtn: document.getElementById("programAddActivityBtn"),
   programHighlightPendingBtn: document.getElementById("programHighlightPendingBtn"),
   programResetPlanningBtn: document.getElementById("programResetPlanningBtn"),
+  programExportExcelBtn: document.getElementById("programExportExcelBtn"),
+  programExportImageBtn: document.getElementById("programExportImageBtn"),
   programLocationName: document.getElementById("programLocationName"),
   programAddLocationBtn: document.getElementById("programAddLocationBtn"),
   programStats: document.getElementById("programStats"),
@@ -1814,6 +1816,16 @@ function setupForms() {
     ui.programHighlightPendingBtn.addEventListener("click", () => {
       state.highlightPending = !state.highlightPending;
       render();
+    });
+  }
+  if (ui.programExportExcelBtn) {
+    ui.programExportExcelBtn.addEventListener("click", () => {
+      exportProgrammationExcel();
+    });
+  }
+  if (ui.programExportImageBtn) {
+    ui.programExportImageBtn.addEventListener("click", () => {
+      exportProgrammationImage();
     });
   }
   if (ui.programResetPlanningBtn) {
@@ -8460,11 +8472,13 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
   });
   if (!sessions.length) {
     ui.programAnnualVisualContainer.innerHTML = `<p class="slot-picker-empty">Aucun créneau pour générer la vue annuelle.</p>`;
+    state.programAnnualExportRows = [];
     return;
   }
 
   const seen = new Set();
   const rows = [];
+  const exportRows = [];
   let currentDay = "";
   let currentBandStart = "";
   for (const s of sessions) {
@@ -8529,6 +8543,21 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
           : { t1: "Trimestre 1", t2: "Trimestre 2", t3: "Trimestre 3" };
     const cellLabel = (period, kind) =>
       escapeHtml(`${periodLabel[period] || ""} · ${kind === "activity" ? "Activité" : "Lieu"}`);
+    const modeLabel =
+      planMode === "YEAR" ? "Année" : planMode === "SEMESTER" ? "Semestre" : "Trimestre";
+    exportRows.push([
+      s.day || "",
+      bandLabel,
+      getClassLabelById(s.classId),
+      getTeacherDisplayLabel(teacher),
+      t1ActivityMeta.enabled ? t1Activity : "",
+      t1LocationMeta.enabled ? t1Lieu : "",
+      t2ActivityMeta.enabled ? t2Activity : "",
+      t2LocationMeta.enabled ? t2Lieu : "",
+      t3ActivityMeta.enabled ? t3Activity : "",
+      t3LocationMeta.enabled ? t3Lieu : "",
+      modeLabel,
+    ]);
     rows.push(`<tr class="annual-slot-row annual-teacher-row${slotStartClass}" style="--annual-teacher-row-bg:${escapeHtml(`${teacherColor}22`)};--annual-teacher-row-border:${escapeHtml(teacherColor)};">
       <td data-label="Horaire">${escapeHtml(bandLabel)}</td>
       <td data-label="Classe">${escapeHtml(getClassLabelById(s.classId))}</td>
@@ -8584,6 +8613,8 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
     </tr>`);
   }
 
+  state.programAnnualExportRows = exportRows;
+
   ui.programAnnualVisualContainer.innerHTML = `
     <table class="program-annual-table">
       <tr class="annual-head">
@@ -8607,6 +8638,56 @@ function renderProgramAnnualVisual(activities, locations, sourceSessions = null)
     </table>
   `;
   bindProgramAnnualVisualActions();
+}
+
+function exportProgrammationExcel() {
+  const rows = state.programAnnualExportRows || [];
+  if (!rows.length) {
+    showToast("Aucun créneau à exporter dans la programmation.", "error");
+    return;
+  }
+  const headers = [
+    "Jour", "Horaire", "Classe", "Prof",
+    "Trimestre 1 - Activité", "Trimestre 1 - Salle",
+    "Trimestre 2 - Activité", "Trimestre 2 - Salle",
+    "Trimestre 3 - Activité", "Trimestre 3 - Salle",
+    "Mode",
+  ];
+  const tableData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(tableData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Programmation");
+  ws["!cols"] = [10, 14, 16, 16, 18, 16, 18, 16, 18, 16, 12].map((width) => ({ wch: width }));
+  XLSX.writeFile(wb, `Programmation_${getActiveSchoolYearId()}.xlsx`);
+  showToast("✅ Fichier Excel de la programmation généré.", "success");
+}
+
+async function exportProgrammationImage() {
+  const container = ui.programAnnualVisualContainer;
+  if (!container || !container.querySelector("table")) {
+    showToast("Aucun créneau à exporter dans la programmation.", "error");
+    return;
+  }
+  try {
+    showToast("Génération de l'image en cours...", "info");
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+    });
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Programmation_${getActiveSchoolYearId()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("✅ Image de la programmation générée.", "success");
+  } catch (error) {
+    console.error("Erreur export image programmation:", error);
+    showToast("Erreur lors de la génération de l'image.", "error");
+  }
 }
 
 function formatProgramBandRange(start, end) {
