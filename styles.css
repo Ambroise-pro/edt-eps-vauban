@@ -1362,6 +1362,37 @@ button[type="submit"] {
   border-radius: 10px;
 }
 
+.teacher-virtual-field {
+  margin: 0.8rem 0;
+  padding: 0.6rem 0.8rem;
+  background: #f0f4f8;
+  border: 1px dashed #8a9bb0;
+  border-radius: 10px;
+}
+
+.teacher-virtual-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.teacher-virtual-field .field-hint {
+  margin-left: 1.6rem;
+}
+
+.teacher-virtual-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #4a5b70;
+  background: #dbe4ee;
+  border-radius: 6px;
+  padding: 0.05rem 0.4rem;
+  vertical-align: middle;
+}
+
 .magic-link-row {
   display: flex;
   gap: 0.4rem;

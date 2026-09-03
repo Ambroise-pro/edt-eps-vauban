@@ -97,6 +97,7 @@ function getBandLabelForDay(band, day) {
 const SPECIAL_ASSIGNMENTS = [
   { id: "__AS__", label: "AS", type: "AS" },
   { id: "__DANSE__", label: "Danse", type: "DANSE" },
+  { id: "__PRIMAIRE__", label: "Primaire", type: "PRIMAIRE" },
 ];
 const LEVEL_RULES = {
   "Sixième": { weeklyHours: 4, hint: "6e: 4h/semaine (2 x 2h)", group: "SIXIEME" },
@@ -292,6 +293,7 @@ const ui = {
   teacherAbbreviation: document.getElementById("teacherAbbreviation"),
   teacherMaxHours: document.getElementById("teacherMaxHours"),
   teacherColor: document.getElementById("teacherColor"),
+  teacherHiddenFromPublic: document.getElementById("teacherHiddenFromPublic"),
   teacherSubmitBtn: document.getElementById("teacherSubmitBtn"),
   teacherCancelEditBtn: document.getElementById("teacherCancelEditBtn"),
   magicLinkSection: document.getElementById("magicLinkSection"),
@@ -2443,6 +2445,7 @@ function setupForms() {
     const abbreviation = normalizeTeacherAbbreviation(ui.teacherAbbreviation.value, name);
     const maxHours = Number(ui.teacherMaxHours.value);
     const color = normalizeHexColor(ui.teacherColor.value);
+    const hiddenFromPublic = Boolean(ui.teacherHiddenFromPublic?.checked);
 
     if (!name || !email || !abbreviation || !maxHours) return;
     try {
@@ -2454,6 +2457,7 @@ function setupForms() {
           abbreviation,
           maxHours,
           color,
+          hiddenFromPublic,
           activeSchoolYears: Array.isArray(currentTeacher?.activeSchoolYears)
             ? currentTeacher.activeSchoolYears
             : [getActiveSchoolYearId()],
@@ -2466,6 +2470,7 @@ function setupForms() {
           abbreviation,
           maxHours,
           color,
+          hiddenFromPublic,
           assignedLevelQuotas: {},
           assignedTargets: [],
           activeSchoolYears: [getActiveSchoolYearId()],
@@ -2652,7 +2657,7 @@ async function toggleAppFullscreen() {
 function syncPublicTeacherSelection() {
   if (!state.selectedPublicTeacherId) state.selectedPublicTeacherId = "__ALL__";
   if (state.selectedPublicTeacherId === "__ALL__") return;
-  if (!state.teachers.some((t) => t.id === state.selectedPublicTeacherId)) {
+  if (!state.teachers.some((t) => t.id === state.selectedPublicTeacherId && !t.hiddenFromPublic)) {
     state.selectedPublicTeacherId = "__ALL__";
   }
 }
@@ -2698,6 +2703,7 @@ function startTeacherEdit(teacherId) {
   ui.teacherAbbreviation.value = normalizeTeacherAbbreviation(teacher.abbreviation, teacher.name || "");
   ui.teacherMaxHours.value = String(teacher.maxHours || "");
   ui.teacherColor.value = normalizeHexColor(teacher.color);
+  if (ui.teacherHiddenFromPublic) ui.teacherHiddenFromPublic.checked = Boolean(teacher.hiddenFromPublic);
   setTeacherConstraintsSelection(teacher.unavailable || []);
   if (ui.teacherSubmitBtn) ui.teacherSubmitBtn.textContent = "Enregistrer les modifications";
   if (ui.teacherCancelEditBtn) ui.teacherCancelEditBtn.classList.remove("hidden");
@@ -2715,6 +2721,7 @@ function resetTeacherForm() {
   if (ui.teacherEditSelect) ui.teacherEditSelect.value = "";
   if (ui.teacherEmail) ui.teacherEmail.value = "";
   if (ui.teacherColor) ui.teacherColor.value = "#0b7285";
+  if (ui.teacherHiddenFromPublic) ui.teacherHiddenFromPublic.checked = false;
   if (ui.teacherSubmitBtn) ui.teacherSubmitBtn.textContent = "Ajouter professeur";
   if (ui.teacherCancelEditBtn) ui.teacherCancelEditBtn.classList.add("hidden");
   setTeacherConstraintsSelection([]);
@@ -6324,7 +6331,11 @@ function renderTeacherOptions() {
   const opts = state.teachers.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
 
   if (ui.publicTeacherSelect) {
-    ui.publicTeacherSelect.innerHTML = `<option value="__ALL__">Tous les enseignants</option>${opts}`;
+    const publicOpts = state.teachers
+      .filter((t) => !t.hiddenFromPublic)
+      .map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`)
+      .join("");
+    ui.publicTeacherSelect.innerHTML = `<option value="__ALL__">Tous les enseignants</option>${publicOpts}`;
     if (state.selectedPublicTeacherId) ui.publicTeacherSelect.value = state.selectedPublicTeacherId;
   }
 
@@ -6540,7 +6551,7 @@ function renderTeacherList() {
       return `<li class="data-item">
         <div>
           <span class="teacher-color-dot" style="background:${escapeHtml(color)}"></span>
-          <strong>${escapeHtml(t.name)}</strong><br>
+          <strong>${escapeHtml(t.name)}</strong>${t.hiddenFromPublic ? ` <span class="teacher-virtual-badge">Virtuel</span>` : ""}<br>
           ${formatHours(used)}/${formatHours(t.maxHours)}h <span class="${over ? "hours-over" : "hours-ok"}">${over ? "(dépassement)" : ""}</span><br>
           <small>${escapeHtml(getTeacherAssignedTargetLabels(t))}</small>
         </div>
@@ -10603,7 +10614,7 @@ function renderPublic() {
   const week = getPublicWeekContext();
   const vacationDays = getVacationDaySetForWeek(week.weekStart);
   const allMode = state.selectedPublicTeacherId === "__ALL__";
-  const teacher = state.teachers.find((t) => t.id === state.selectedPublicTeacherId);
+  const teacher = state.teachers.find((t) => t.id === state.selectedPublicTeacherId && !t.hiddenFromPublic);
   if (!allMode && !teacher) {
     if (ui.publicTeacherSummary) ui.publicTeacherSummary.innerHTML = "Aucun professeur disponible.";
     if (ui.publicDashboardIntro) ui.publicDashboardIntro.textContent = "Aucun enseignant disponible pour l'année scolaire sélectionnée.";
@@ -10627,7 +10638,12 @@ function renderPublic() {
     ui.publicWeekMeta.classList.toggle("hidden", parts.length === 0);
   }
 
-  const sourceSessions = allMode ? state.sessions : state.sessions.filter((s) => s.teacherId === teacher.id);
+  const publicVisibleTeacherIds = new Set(state.teachers.filter((t) => !t.hiddenFromPublic).map((t) => t.id));
+  const isPublicHiddenSession = (s) => getSpecialAssignmentById(s.classId)?.type === "PRIMAIRE";
+  const sourceSessions = (allMode
+    ? state.sessions.filter((s) => publicVisibleTeacherIds.has(s.teacherId))
+    : state.sessions.filter((s) => s.teacherId === teacher.id)
+  ).filter((s) => !isPublicHiddenSession(s));
   const rawSessions = sourceSessions.filter((s) => isSessionVisibleForWeek(s, week.weekType));
   const rawReplacementEntries = getReplacementEntriesForWeek(week, allMode ? "" : teacher.id);
 
@@ -10654,7 +10670,7 @@ function renderPublic() {
   const replacementEntries = rawReplacementEntries.filter((entry) => !vacationDays.has(String(entry.session?.day || "")));
   if (allMode) {
     if (ui.publicTeacherSummary) {
-      ui.publicTeacherSummary.innerHTML = `<strong>Vue globale</strong><br>${state.teachers.length} enseignants affichés · ${sessions.length} créneau(x) cette semaine · ${replacementEntries.length} remplacement(s)`;
+      ui.publicTeacherSummary.innerHTML = `<strong>Vue globale</strong><br>${publicVisibleTeacherIds.size} enseignants affichés · ${sessions.length} créneau(x) cette semaine · ${replacementEntries.length} remplacement(s)`;
     }
   } else {
     const used = sessions.reduce((acc, s) => acc + Number(s.duration || 0), 0);
@@ -10674,7 +10690,7 @@ function renderPublic() {
     ui.publicDashboardTitle.textContent = allMode ? "EDT global" : `EDT - ${teacher?.name || ""}`;
   }
   if (ui.publicDashboardStats) {
-    const visibleTeachers = allMode ? state.teachers.length : 1;
+    const visibleTeachers = allMode ? publicVisibleTeacherIds.size : 1;
     const stats = [
       {
         label: "Semaine",
