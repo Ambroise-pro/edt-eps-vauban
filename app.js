@@ -6140,6 +6140,18 @@ function resolveClassIdFromAssignPayload(payload, teacherId, day, slot, weekType
   return candidates[0]?.id || "";
 }
 
+// Contrôles de l'onglet Programmation qui ne font que filtrer/exporter la vue (aucune
+// écriture Firestore) : ils doivent rester cliquables même sans droit MODIFY sur
+// "program", conformément au principe "la programmation est consultable par tous".
+const PROGRAM_VIEW_ONLY_CONTROL_IDS = new Set([
+  "programFilterTeacher",
+  "programFilterPeriod",
+  "programFilterMineOnly",
+  "programHighlightPendingBtn",
+  "programExportExcelBtn",
+  "programExportImageBtn",
+]);
+
 function enforcePermissions() {
   // Skip for SUPER_ADMIN - they have all permissions
   if (state.currentUserRole === "SUPER_ADMIN") return;
@@ -6187,6 +6199,10 @@ function enforcePermissions() {
       if (el.id.startsWith("programSubtab")) return;
       // Natation: les toggles sont gérés dynamiquement et doivent rester cliquables.
       if (el.classList.contains("swim-toggle")) return;
+      // La programmation est consultable par tous (cf. alwaysVisible ci-dessus): les
+      // filtres/exports qui ne modifient aucune donnée doivent rester utilisables même
+      // en lecture seule, sinon un enseignant ne peut même pas filtrer sa propre vue.
+      if (PROGRAM_VIEW_ONLY_CONTROL_IDS.has(el.id)) return;
 
       el.disabled = !canModify;
       if (el.classList.contains("delete-btn") || el.classList.contains("secondary-btn")) {
