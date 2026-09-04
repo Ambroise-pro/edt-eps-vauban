@@ -8303,16 +8303,26 @@ function renderProgrammingPanel() {
   }
 
   // Ajouter les event listeners
+  // Changer un filtre reconstruit programAnnualVisualContainer (innerHTML), ce qui peut
+  // raccourcir fortement la page (ex: "mes classes uniquement" ne garde que quelques
+  // lignes) sans que le navigateur ne réajuste le défilement déjà en cours : la position
+  // de scroll précédente se retrouve alors au-delà du nouveau contenu, qui semble
+  // "bloqué"/inaccessible. On ramène donc les filtres (et le tableau qui suit) dans la
+  // zone visible après chaque changement.
+  const rescrollToProgramFilters = () => {
+    renderProgrammingPanel();
+    (ui.programFilterMineWrap || ui.programFilterTeacher)?.scrollIntoView({ block: "nearest" });
+  };
   if (ui.programFilterTeacher && !ui.programFilterTeacher._listenerAttached) {
-    ui.programFilterTeacher.onchange = () => renderProgrammingPanel();
+    ui.programFilterTeacher.onchange = rescrollToProgramFilters;
     ui.programFilterTeacher._listenerAttached = true;
   }
   if (ui.programFilterPeriod && !ui.programFilterPeriod._listenerAttached) {
-    ui.programFilterPeriod.onchange = () => renderProgrammingPanel();
+    ui.programFilterPeriod.onchange = rescrollToProgramFilters;
     ui.programFilterPeriod._listenerAttached = true;
   }
   if (ui.programFilterMineOnly && !ui.programFilterMineOnly._listenerAttached) {
-    ui.programFilterMineOnly.onchange = () => renderProgrammingPanel();
+    ui.programFilterMineOnly.onchange = rescrollToProgramFilters;
     ui.programFilterMineOnly._listenerAttached = true;
   }
 
