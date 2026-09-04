@@ -2523,16 +2523,16 @@ fieldset {
    cela, ces règles génériques de tableau (font-size: 0.6rem, border: 1px...) gagnaient
    la cascade et rendaient ce séparateur de jour minuscule et peu lisible. */
 .program-annual-table .program-annual-day-row td {
-  background: #a9c6e0;
+  background: #000000;
   font-weight: 900;
-  color: var(--primary-strong);
+  color: #ffffff;
   text-align: center;
   font-size: 1.05rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 0.7rem 0.5rem;
-  border-top: 2px solid var(--primary-strong);
-  border-bottom: 2px solid var(--primary-strong);
+  border-top: 2px solid #000000;
+  border-bottom: 2px solid #000000;
 }
 
 .annual-trim-sep {
