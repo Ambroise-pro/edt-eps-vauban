@@ -258,7 +258,6 @@ const ui = {
   publicWeekLabel: document.getElementById("publicWeekLabel"),
   publicWeekMeta: document.getElementById("publicWeekMeta"),
   publicAbsenceSummary: document.getElementById("publicAbsenceSummary"),
-  publicOpenReplacementModalBtn: document.getElementById("publicOpenReplacementModalBtn"),
   publicAbsenceRequestsContainer: document.getElementById("publicAbsenceRequestsContainer"),
   publicReplacementModal: document.getElementById("publicReplacementModal"),
   publicReplacementModalContext: document.getElementById("publicReplacementModalContext"),
@@ -1946,11 +1945,6 @@ function setupForms() {
   if (ui.programPickModal) {
     ui.programPickModal.addEventListener("click", (e) => {
       if (e.target === ui.programPickModal) closeProgramPickModal();
-    });
-  }
-  if (ui.publicOpenReplacementModalBtn) {
-    ui.publicOpenReplacementModalBtn.addEventListener("click", () => {
-      openPublicReplacementModal();
     });
   }
   if (ui.publicReplacementModalCloseBtn) {
@@ -10433,8 +10427,7 @@ function shiftPublicWeek(days) {
   state.selectedPublicWeekStart = toIsoDate(bounded);
 }
 
-function getPublicWeekContext() {
-  const weekStart = ensurePublicWeekSelection();
+function buildWeekContext(weekStart) {
   const weekEnd = addDays(weekStart, 4);
   const bounds = getSchoolYearBounds();
   const inYear = bounds ? weekStart >= bounds.startMonday && weekStart <= bounds.endMonday : true;
@@ -10462,6 +10455,10 @@ function getPublicWeekContext() {
     vacationLabels,
     holidayLabels,
   };
+}
+
+function getPublicWeekContext() {
+  return buildWeekContext(ensurePublicWeekSelection());
 }
 
 async function submitReplacementOffer(absenceId, sessionId) {
@@ -10564,11 +10561,6 @@ function getUpcomingAbsenceOpportunities() {
 
 function renderPublicAbsenceRequests() {
   if (!ui.publicAbsenceRequestsContainer || !ui.publicAbsenceSummary) return;
-  if (ui.publicOpenReplacementModalBtn) {
-    const canUse = Boolean(state.currentUserTeacherId);
-    ui.publicOpenReplacementModalBtn.disabled = !canUse;
-    ui.publicOpenReplacementModalBtn.title = canUse ? "Afficher mon EDT et mes opportunités" : "Connectez-vous en mode enseignant";
-  }
   const absentEntries = getUpcomingAbsenceOpportunities();
 
   if (!absentEntries.length) {
@@ -10614,6 +10606,7 @@ function renderPublicAbsenceRequests() {
         <td data-label="Absence"><strong class="hours-over">${escapeHtml(absentTeacher?.name || "Prof absent")}</strong></td>
         <td data-label="Candidatures">${offersCount}</td>
         <td data-label="Action">${actionHtml}</td>
+        <td data-label="Mon EDT"><button type="button" class="secondary-btn" data-view-my-edt-week="${escapeHtml(entry.dateIso)}">Voir sur mon EDT</button></td>
       </tr>`;
     })
     .join("");
@@ -10622,7 +10615,7 @@ function renderPublicAbsenceRequests() {
   ui.publicAbsenceRequestsContainer.innerHTML = `
     <table class="absence-table public-absence-table">
       <thead>
-        <tr><th>Date</th><th>Créneau</th><th>Classe</th><th>Absence</th><th>Candidatures</th><th>Action</th></tr>
+        <tr><th>Date</th><th>Créneau</th><th>Classe</th><th>Absence</th><th>Candidatures</th><th>Action</th><th>Mon EDT</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
@@ -10633,6 +10626,14 @@ function renderPublicAbsenceRequests() {
       const [absenceId, sessionId] = String(btn.dataset.publicPropose || "").split("|");
       await submitReplacementOffer(absenceId, sessionId);
       renderPublicAbsenceRequests();
+    });
+  });
+  ui.publicAbsenceRequestsContainer.querySelectorAll("[data-view-my-edt-week]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dateIso = String(btn.dataset.viewMyEdtWeek || "");
+      const date = parseIsoDate(dateIso);
+      if (Number.isNaN(date.getTime())) return;
+      openPublicReplacementModal(getMonday(date));
     });
   });
   ui.publicAbsenceRequestsContainer.querySelectorAll("[data-open-login-modal]").forEach((btn) => {
@@ -10649,7 +10650,7 @@ function closePublicReplacementModal() {
   ui.publicReplacementModal.classList.add("hidden");
 }
 
-function openPublicReplacementModal() {
+function openPublicReplacementModal(weekStart = null) {
   if (!ui.publicReplacementModal || !ui.publicReplacementModalBody || !ui.publicReplacementModalContext) return;
   if (!state.currentUserTeacherId) {
     ui.publicReplacementModalContext.textContent = "Connectez-vous en mode enseignant pour voir vos opportunités.";
@@ -10658,7 +10659,7 @@ function openPublicReplacementModal() {
     return;
   }
 
-  const week = getPublicWeekContext();
+  const week = weekStart ? buildWeekContext(weekStart) : getPublicWeekContext();
   const vacationDays = getVacationDaySetForWeek(week.weekStart);
   const teacherId = state.currentUserTeacherId;
   const teacher = state.teachers.find((t) => t.id === teacherId);
@@ -10761,7 +10762,7 @@ function openPublicReplacementModal() {
       const [absenceId, sessionId] = String(btn.dataset.modalPublicPropose || "").split("|");
       await submitReplacementOffer(absenceId, sessionId);
       renderPublicAbsenceRequests();
-      openPublicReplacementModal();
+      openPublicReplacementModal(week.weekStart);
     });
   });
 

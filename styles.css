@@ -1214,12 +1214,6 @@ body {
   margin: 0;
 }
 
-.public-absence-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0.35rem 0 0.65rem;
-}
-
 .replacement-modal-card {
   width: min(1180px, 97vw);
   max-height: 88vh;
@@ -4246,14 +4240,6 @@ body[data-assign-mode="reorganize"] .slot-action {
   #absenceOffersContainer table {
     min-width: 760px;
   }
-
-  .public-absence-actions {
-    justify-content: stretch;
-  }
-
-  .public-absence-actions button {
-    width: 100%;
-  }
 }
 
 /* --- BULLE FLOTTANTE --- */
@@ -6953,7 +6939,6 @@ button:hover {
   header.topbar,
   nav.admin-tabs-horizontal,
   .public-week-nav,
-  .public-absence-actions,
   #publicAbsenceRequestsContainer,
   .admin-shell > nav,
   .floating-assign-container,
