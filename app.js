@@ -10520,32 +10520,54 @@ async function submitReplacementOffer(absenceId, sessionId) {
   }
 }
 
-function renderPublicAbsenceRequests(week) {
-  if (!ui.publicAbsenceRequestsContainer || !ui.publicAbsenceSummary) return;
-  if (ui.publicOpenReplacementModalBtn) {
-    const canUse = Boolean(state.currentUserTeacherId);
-    ui.publicOpenReplacementModalBtn.disabled = !canUse;
-    ui.publicOpenReplacementModalBtn.title = canUse ? "Afficher mon EDT et mes opportunités" : "Connectez-vous en mode enseignant";
-  }
-  const vacationDays = getVacationDaySetForWeek(week?.weekStart);
-  const weekSessions = state.sessions.filter((s) => isSessionVisibleForWeek(s, week.weekType) && !vacationDays.has(String(s.day || "")));
-  const absentEntries = weekSessions
-    .map((session) => {
-      const absence = isSessionAbsentForWeek(session, week.weekStart);
-      if (!absence) return null;
+// Recense les créneaux en absence sur TOUTES les semaines à venir (pas seulement la
+// semaine actuellement affichée sur l'EDT public) : un remplacement possible en octobre
+// doit rester visible même en consultant l'EDT en septembre. Bornée par l'année scolaire
+// configurée (ou, à défaut, ~20 semaines) et ne remonte jamais avant aujourd'hui.
+function getUpcomingAbsenceOpportunities() {
+  const bounds = getSchoolYearBounds();
+  const todayIso = toIsoDate(new Date());
+  const todayMonday = getMonday(new Date());
+  const startMonday = bounds && bounds.startMonday > todayMonday ? bounds.startMonday : todayMonday;
+  const endMonday = bounds ? bounds.endMonday : addDays(todayMonday, 7 * 20);
+
+  const entries = [];
+  for (let monday = startMonday; monday <= endMonday; monday = addDays(monday, 7)) {
+    const weekType = getWeekTypeForMonday(monday);
+    const vacationDays = getVacationDaySetForWeek(monday);
+    const weekSessions = state.sessions.filter(
+      (s) => isSessionVisibleForWeek(s, weekType) && !vacationDays.has(String(s.day || ""))
+    );
+    for (const session of weekSessions) {
+      const absence = isSessionAbsentForWeek(session, monday);
+      if (!absence) continue;
+      const dateIso = getSessionDateIsoForWeek(session, monday);
+      if (!dateIso || dateIso < todayIso) continue;
       const absentTeacher = state.teachers.find((t) => t.id === session.teacherId);
       const replacement = state.replacements.find((r) => r.absenceId === absence.id && r.sessionId === session.id);
       const replacementTeacher = state.teachers.find((t) => t.id === replacement?.toTeacherId);
       const offers = state.replacementOffers.filter(
         (o) => o.absenceId === absence.id && o.sessionId === session.id && String(o.status || "").toUpperCase() === "PENDING"
       );
-      return { session, absence, absentTeacher, replacementTeacher, offersCount: offers.length };
-    })
-    .filter(Boolean)
-    .sort((a, b) => DAYS.indexOf(a.session.day) - DAYS.indexOf(b.session.day) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr"));
+      entries.push({ session, absence, absentTeacher, replacementTeacher, offersCount: offers.length, dateIso });
+    }
+  }
+  return entries.sort(
+    (a, b) => a.dateIso.localeCompare(b.dateIso) || String(a.session.start || "").localeCompare(String(b.session.start || ""), "fr")
+  );
+}
+
+function renderPublicAbsenceRequests() {
+  if (!ui.publicAbsenceRequestsContainer || !ui.publicAbsenceSummary) return;
+  if (ui.publicOpenReplacementModalBtn) {
+    const canUse = Boolean(state.currentUserTeacherId);
+    ui.publicOpenReplacementModalBtn.disabled = !canUse;
+    ui.publicOpenReplacementModalBtn.title = canUse ? "Afficher mon EDT et mes opportunités" : "Connectez-vous en mode enseignant";
+  }
+  const absentEntries = getUpcomingAbsenceOpportunities();
 
   if (!absentEntries.length) {
-    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée sur cette semaine.</span>`;
+    ui.publicAbsenceSummary.innerHTML = `<span class="hours-ok">Aucune absence déclarée à venir.</span>`;
     ui.publicAbsenceRequestsContainer.innerHTML = `<p class="summary-box">Aucun créneau absent.</p>`;
     return;
   }
@@ -10581,6 +10603,7 @@ function renderPublicAbsenceRequests(week) {
           : `<button type="button" class="secondary-btn" data-open-login-modal="1">Se connecter (enseignant)</button>`;
 
       return `<tr class="absence-public-row">
+        <td data-label="Date">${escapeHtml(formatDateFrShort(parseIsoDate(entry.dateIso)))}</td>
         <td data-label="Créneau">${escapeHtml(session.day)} ${escapeHtml(session.start)}</td>
         <td data-label="Classe">${escapeHtml(getClassLabelById(session.classId, true))}</td>
         <td data-label="Absence"><strong class="hours-over">${escapeHtml(absentTeacher?.name || "Prof absent")}</strong></td>
@@ -10590,11 +10613,11 @@ function renderPublicAbsenceRequests(week) {
     })
     .join("");
 
-  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence sur cette semaine.`;
+  ui.publicAbsenceSummary.innerHTML = `<span class="hours-over">${absentEntries.length}</span> créneau(x) en absence à venir.`;
   ui.publicAbsenceRequestsContainer.innerHTML = `
     <table class="absence-table public-absence-table">
       <thead>
-        <tr><th>Créneau</th><th>Classe</th><th>Absence</th><th>Candidatures</th><th>Action</th></tr>
+        <tr><th>Date</th><th>Créneau</th><th>Classe</th><th>Absence</th><th>Candidatures</th><th>Action</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
@@ -10604,7 +10627,7 @@ function renderPublicAbsenceRequests(week) {
     btn.addEventListener("click", async () => {
       const [absenceId, sessionId] = String(btn.dataset.publicPropose || "").split("|");
       await submitReplacementOffer(absenceId, sessionId);
-      renderPublicAbsenceRequests(getPublicWeekContext());
+      renderPublicAbsenceRequests();
     });
   });
   ui.publicAbsenceRequestsContainer.querySelectorAll("[data-open-login-modal]").forEach((btn) => {
@@ -10732,7 +10755,7 @@ function openPublicReplacementModal() {
     btn.addEventListener("click", async () => {
       const [absenceId, sessionId] = String(btn.dataset.modalPublicPropose || "").split("|");
       await submitReplacementOffer(absenceId, sessionId);
-      renderPublicAbsenceRequests(getPublicWeekContext());
+      renderPublicAbsenceRequests();
       openPublicReplacementModal();
     });
   });
@@ -11042,7 +11065,7 @@ function renderPublic() {
     });
   });
 
-  renderPublicAbsenceRequests(week);
+  renderPublicAbsenceRequests();
 }
 
 function renderAdminPlanner() {
