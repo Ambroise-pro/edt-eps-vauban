@@ -10529,7 +10529,13 @@ function getUpcomingAbsenceOpportunities() {
   const todayIso = toIsoDate(new Date());
   const todayMonday = getMonday(new Date());
   const startMonday = bounds && bounds.startMonday > todayMonday ? bounds.startMonday : todayMonday;
-  const endMonday = bounds ? bounds.endMonday : addDays(todayMonday, 7 * 20);
+  const fallbackEndMonday = addDays(startMonday, 7 * 20);
+  // Ne fait confiance à la borne de fin de l'année scolaire configurée que si elle est
+  // cohérente (postérieure au départ du balayage) : une config d'année scolaire absente,
+  // pas encore mise à jour pour la nouvelle année, ou incohérente, ne doit jamais réduire
+  // la fenêtre de balayage à zéro semaine (ce qui masquerait TOUTES les opportunités, y
+  // compris celles de la semaine en cours).
+  const endMonday = bounds && bounds.endMonday > startMonday ? bounds.endMonday : fallbackEndMonday;
 
   const entries = [];
   for (let monday = startMonday; monday <= endMonday; monday = addDays(monday, 7)) {
