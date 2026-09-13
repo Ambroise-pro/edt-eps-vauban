@@ -15795,6 +15795,14 @@ function handleMagicLink() {
 }
 
 function init() {
+  try {
+    if (sessionStorage.getItem("pwaJustUpdated")) {
+      sessionStorage.removeItem("pwaJustUpdated");
+      showToast("✅ Mise à jour appliquée : vous utilisez la dernière version.", "success");
+    }
+  } catch {
+    // sessionStorage indisponible : pas de toast, ce n'est pas bloquant.
+  }
   handleMagicLink();
   setupAuth();
   setupAdminSidebar();
