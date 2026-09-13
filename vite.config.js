@@ -5,7 +5,12 @@ export default defineConfig({
   base: '/',
   plugins: [
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
+      // Le script d'enregistrement auto-injecté (mode par défaut) est un simple
+      // navigator.serviceWorker.register(...) sans aucune détection de mise à jour, quel
+      // que soit registerType: c'est le module virtual:pwa-register (voir
+      // src/pwa-register.js) qui porte la logique de rechargement automatique.
+      injectRegister: false,
       includeAssets: ['logo.png', 'favicon.ico', 'icon-192x192.svg', 'icon-512x512.svg', 'icon-192x192-maskable.svg', 'icon-512x512-maskable.svg'],
       strategies: 'generateSW',
       filename: 'sw.js',
@@ -50,6 +55,13 @@ export default defineConfig({
         globIgnores: ['**/node_modules/**/*', '.map'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // Avec registerType 'autoUpdate', une nouvelle version doit s'activer et prendre
+        // la main sur tous les onglets ouverts sans attendre leur fermeture, pour que le
+        // rechargement automatique (déclenché côté client sur l'évènement "activated")
+        // ait bien lieu au lieu de rester bloqué en attente indéfiniment.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
