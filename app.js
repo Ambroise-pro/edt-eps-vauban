@@ -1823,7 +1823,7 @@ function setupForms() {
   }
   if (ui.programExportImageBtn) {
     ui.programExportImageBtn.addEventListener("click", () => {
-      exportProgrammationImage();
+      exportProgrammationPdf();
     });
   }
   if (ui.programResetPlanningBtn) {
@@ -8666,46 +8666,136 @@ function exportProgrammationExcel() {
     return;
   }
   const headers = [
-    "Jour", "Horaire", "Classe", "Prof",
+    "Horaire", "Classe", "Prof",
     "Trimestre 1 - Activité", "Trimestre 1 - Salle",
     "Trimestre 2 - Activité", "Trimestre 2 - Salle",
     "Trimestre 3 - Activité", "Trimestre 3 - Salle",
     "Mode",
   ];
-  const tableData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(tableData);
+  const colWidths = [14, 16, 16, 18, 16, 18, 16, 18, 16, 12].map((width) => ({ wch: width }));
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Programmation");
-  ws["!cols"] = [10, 14, 16, 16, 18, 16, 18, 16, 18, 16, 12].map((width) => ({ wch: width }));
+  // Une feuille par jour : le jour (colonne 0 des lignes) devient le nom de l'onglet
+  // plutôt qu'une colonne répétée sur chaque ligne.
+  const rowsByDay = new Map();
+  for (const row of rows) {
+    const day = String(row[0] || "Autre");
+    if (!rowsByDay.has(day)) rowsByDay.set(day, []);
+    rowsByDay.get(day).push(row.slice(1));
+  }
+  const orderedDays = DAYS.filter((d) => rowsByDay.has(d));
+  for (const otherDay of rowsByDay.keys()) {
+    if (!orderedDays.includes(otherDay)) orderedDays.push(otherDay);
+  }
+  for (const day of orderedDays) {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rowsByDay.get(day)]);
+    ws["!cols"] = colWidths;
+    // Les noms d'onglet Excel sont limités à 31 caractères et ne supportent pas certains
+    // caractères spéciaux ([ ] : * ? / \) ; les noms de jours en respectent déjà les
+    // règles, mais on tronque par sécurité si une valeur inattendue apparaissait.
+    XLSX.utils.book_append_sheet(wb, ws, day.slice(0, 31));
+  }
   XLSX.writeFile(wb, `Programmation_${getActiveSchoolYearId()}.xlsx`);
-  showToast("✅ Fichier Excel de la programmation généré.", "success");
+  showToast("✅ Fichier Excel de la programmation généré (un onglet par jour).", "success");
 }
 
-async function exportProgrammationImage() {
-  const container = ui.programAnnualVisualContainer;
-  if (!container || !container.querySelector("table")) {
+async function exportProgrammationPdf() {
+  const rows = state.programAnnualExportRows || [];
+  if (!rows.length) {
     showToast("Aucun créneau à exporter dans la programmation.", "error");
     return;
   }
+  const rowsByDay = new Map();
+  for (const row of rows) {
+    const day = String(row[0] || "Autre");
+    if (!rowsByDay.has(day)) rowsByDay.set(day, []);
+    rowsByDay.get(day).push(row);
+  }
+  const orderedDays = DAYS.filter((d) => rowsByDay.has(d));
+  for (const otherDay of rowsByDay.keys()) {
+    if (!orderedDays.includes(otherDay)) orderedDays.push(otherDay);
+  }
+
+  // Rendu d'une table statique (texte simple, pas de boutons/select interactifs) par
+  // jour : cloner la table interactive perdrait la valeur choisie des <select> (leur
+  // "value" JS n'est pas sérialisée par cloneNode), donc on reconstruit à partir des
+  // mêmes données déjà calculées pour l'export Excel plutôt que de cloner le DOM.
+  const buildDayTableHtml = (day) => {
+    const dayRows = rowsByDay.get(day) || [];
+    const bodyRows = dayRows
+      .map(
+        (row) => `<tr>${row
+          .slice(1)
+          .map((cell) => `<td>${escapeHtml(String(cell ?? ""))}</td>`)
+          .join("")}</tr>`
+      )
+      .join("");
+    return `
+      <style>
+        /* html2canvas (bundlé, jamais mis à jour depuis 1.4.1) ne sait pas parser les
+           couleurs CSS modernes ("color-mix(...)" calculée par le navigateur en
+           "color(srgb ...)"), notamment la règle globale de bordure gauche des cellules
+           (th:nth-child(n+2), td:nth-child(n+2) { border-left: ... color-mix(...) }) qui
+           ferait planter la capture. On la neutralise ici avec une bordure classique. */
+        #pdf-export-day-table th, #pdf-export-day-table td {
+          border-left-color: #c9d8e5 !important;
+        }
+      </style>
+      <table id="pdf-export-day-table" class="program-annual-table">
+        <tr class="program-annual-day-row"><td colspan="10">${escapeHtml(day)}</td></tr>
+        <tr class="annual-head">
+          <th rowspan="2">Horaire</th><th rowspan="2">Classe</th><th rowspan="2">Prof</th>
+          <th colspan="2">Trimestre 1</th><th colspan="2">Trimestre 2</th><th colspan="2">Trimestre 3</th>
+          <th rowspan="2">Mode</th>
+        </tr>
+        <tr class="annual-subhead">
+          <th>Activité</th><th>Lieu</th><th>Activité</th><th>Lieu</th><th>Activité</th><th>Lieu</th>
+        </tr>
+        ${bodyRows}
+      </table>`;
+  };
+
   try {
-    showToast("Génération de l'image en cours...", "info");
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-    });
-    const url = canvas.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Programmation_${getActiveSchoolYearId()}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast("✅ Image de la programmation générée.", "success");
+    showToast("Génération du PDF en cours...", "info");
+    const temp = document.createElement("div");
+    temp.style.position = "fixed";
+    temp.style.left = "-99999px";
+    temp.style.top = "0";
+    temp.style.background = "#ffffff";
+    temp.style.width = "1400px";
+    document.body.appendChild(temp);
+
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+
+    for (let i = 0; i < orderedDays.length; i++) {
+      const day = orderedDays[i];
+      temp.innerHTML = buildDayTableHtml(day);
+      const tableEl = temp.querySelector("table");
+      const canvas = await html2canvas(tableEl, { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" });
+
+      if (i > 0) pdf.addPage();
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+      const imgRatio = canvas.width / canvas.height;
+      let drawW = availW;
+      let drawH = drawW / imgRatio;
+      if (drawH > availH) {
+        drawH = availH;
+        drawW = drawH * imgRatio;
+      }
+      const x = margin + (availW - drawW) / 2;
+      const y = margin + (availH - drawH) / 2;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, drawW, drawH);
+    }
+
+    document.body.removeChild(temp);
+    pdf.save(`Programmation_${getActiveSchoolYearId()}.pdf`);
+    showToast("✅ PDF de la programmation généré (une page par jour).", "success");
   } catch (error) {
-    console.error("Erreur export image programmation:", error);
-    showToast("Erreur lors de la génération de l'image.", "error");
+    console.error("Erreur export PDF programmation:", error);
+    showToast("Erreur lors de la génération du PDF.", "error");
   }
 }
 
