@@ -13528,14 +13528,17 @@ async function toggleSessionWeekType(sessionId) {
     ? state.sessions.find((s) => s.id !== session.id && s.classId === session.classId && sessionsConflict(candidate, s))
     : null;
 
-  // Cas fréquent: un binôme A/B sur le même créneau (même classe ET même prof, deux
-  // activités en alternance). Un simple toggle échoue toujours dans ce cas (la semaine
-  // visée est déjà prise par le binôme) — on échange plutôt les deux semaines entre eux.
+  // Cas fréquent: un binôme A/B sur le même créneau et le même prof — soit la même
+  // classe avec deux activités en alternance, soit (le plus courant) deux classes
+  // DIFFÉRENTES que le prof voit en alternance sur ce créneau. Dans les deux cas, un
+  // simple toggle échoue toujours (la semaine visée est déjà prise par le binôme) — on
+  // échange plutôt les deux semaines entre les deux cours. On ne bloque que si le
+  // conflit de classe pointe vers un AUTRE cours que ce binôme (problème distinct).
   const pairSibling =
     teacherConflict &&
-    teacherConflict.id === classConflict?.id &&
     normalizeCadence(teacherConflict.cadence) === "BIWEEKLY" &&
-    normalizeWeekType(teacherConflict.weekType) !== normalizeWeekType(session.weekType)
+    normalizeWeekType(teacherConflict.weekType) !== normalizeWeekType(session.weekType) &&
+    (!classConflict || classConflict.id === teacherConflict.id)
       ? teacherConflict
       : null;
 
