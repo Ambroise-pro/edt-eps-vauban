@@ -13524,27 +13524,63 @@ async function toggleSessionWeekType(sessionId) {
   const teacherConflict = state.sessions.find(
     (s) => s.id !== session.id && s.teacherId === session.teacherId && sessionsConflict(candidate, s)
   );
-  if (teacherConflict) {
-    if (ui.sessionError) {
-      ui.sessionError.textContent = `Conflit: ${getTeacherDisplayLabel(state.teachers.find((t) => t.id === session.teacherId))} a déjà un cours sur ce créneau en semaine ${newWeekType} (${teacherConflict.day} ${teacherConflict.start}).`;
+  const classConflict = !special
+    ? state.sessions.find((s) => s.id !== session.id && s.classId === session.classId && sessionsConflict(candidate, s))
+    : null;
+
+  // Cas fréquent: un binôme A/B sur le même créneau (même classe ET même prof, deux
+  // activités en alternance). Un simple toggle échoue toujours dans ce cas (la semaine
+  // visée est déjà prise par le binôme) — on échange plutôt les deux semaines entre eux.
+  const pairSibling =
+    teacherConflict &&
+    teacherConflict.id === classConflict?.id &&
+    normalizeCadence(teacherConflict.cadence) === "BIWEEKLY" &&
+    normalizeWeekType(teacherConflict.weekType) !== normalizeWeekType(session.weekType)
+      ? teacherConflict
+      : null;
+
+  if (pairSibling) {
+    try {
+      const batch = db.batch();
+      batch.update(doc(db, "sessions", session.id), { weekType: newWeekType, updatedAt: serverTimestamp() });
+      batch.update(doc(db, "sessions", pairSibling.id), {
+        weekType: normalizeWeekType(session.weekType),
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+      showToast("✅ Semaines A/B échangées entre les deux cours de ce créneau.", "success");
+      logActivity("session_week_type_swapped", {
+        sessionId: session.id,
+        siblingId: pairSibling.id,
+        day: session.day,
+        start: session.start,
+        classId: session.classId,
+        teacherId: session.teacherId,
+      });
+    } catch (error) {
+      showToast(`Erreur: ${error?.message || "échange impossible."}`, "error");
     }
     return;
   }
-  if (!special) {
-    const classConflict = state.sessions.find(
-      (s) => s.id !== session.id && s.classId === session.classId && sessionsConflict(candidate, s)
+
+  if (teacherConflict) {
+    showToast(
+      `Conflit: ${getTeacherDisplayLabel(state.teachers.find((t) => t.id === session.teacherId))} a déjà un cours sur ce créneau en semaine ${newWeekType} (${teacherConflict.day} ${teacherConflict.start}).`,
+      "error"
     );
-    if (classConflict) {
-      if (ui.sessionError) {
-        ui.sessionError.textContent = `Conflit: la classe ${getClassLabelById(session.classId)} est déjà occupée sur ce créneau en semaine ${newWeekType} (${classConflict.day} ${classConflict.start}).`;
-      }
-      return;
-    }
+    return;
+  }
+  if (classConflict) {
+    showToast(
+      `Conflit: la classe ${getClassLabelById(session.classId)} est déjà occupée sur ce créneau en semaine ${newWeekType} (${classConflict.day} ${classConflict.start}).`,
+      "error"
+    );
+    return;
   }
 
   try {
     await updateDoc(doc(db, "sessions", sessionId), { weekType: newWeekType, updatedAt: serverTimestamp() });
-    if (ui.sessionError) ui.sessionError.textContent = "";
+    showToast(`✅ Cours basculé en semaine ${newWeekType}.`, "success");
     logActivity("session_week_type_changed", {
       sessionId,
       day: session.day,
@@ -13554,7 +13590,7 @@ async function toggleSessionWeekType(sessionId) {
       newWeekType,
     });
   } catch (error) {
-    if (ui.sessionError) ui.sessionError.textContent = `Erreur: ${error?.message || "modification impossible."}`;
+    showToast(`Erreur: ${error?.message || "modification impossible."}`, "error");
   }
 }
 
