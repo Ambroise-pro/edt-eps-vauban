@@ -11380,6 +11380,7 @@ function renderAdminPlanner() {
   });
 
   bindSessionRemoveButtons(container);
+  bindSessionWeekToggleButtons(container);
   bindSessionDragStart(container);
 }
 
@@ -11749,6 +11750,7 @@ function renderGlobalPlanner() {
   bindGlobalClassLetterEditActions(container);
   bindGlobalPlannerActions(weekType, container);
   bindSessionRemoveButtons(container);
+  bindSessionWeekToggleButtons(container);
   bindSessionDragStart(container);
 }
 
@@ -11893,6 +11895,7 @@ function renderGlobalPlannerExcel(weekType) {
   `;
   state.globalPicker = null;
   bindSessionRemoveButtons(container);
+  bindSessionWeekToggleButtons(container);
   bindSessionDragStart(container);
 }
 
@@ -13293,11 +13296,18 @@ function renderSessionBlockHtml({
       ? ` biweekly-half biweekly-${normalizeWeekType(weekType).toLowerCase()}`
       : "";
   const draggable = state.assignMode === "view" ? "false" : "true";
+  const isBiweekly = normalizeCadence(cadence) === "BIWEEKLY";
+  const otherWeek = normalizeWeekType(weekType) === "A" ? "B" : "A";
+  const weekToggleBtn =
+    showContent && showRemoveButton && isBiweekly
+      ? `<button class="session-remove-btn session-week-toggle-btn" data-session-week-toggle="${escapeHtml(sessionId)}" type="button" title="Basculer ce cours en semaine ${otherWeek}">${escapeHtml(normalizeWeekType(weekType))}</button>`
+      : "";
   return `
     <div class="${className}${biClass} session-draggable-block" style="${escapeHtml(style)}" draggable="${draggable}" data-session-draggable-id="${escapeHtml(sessionId)}" data-session-block-id="${escapeHtml(sessionId)}">
       <div class="session-block-row">
         <span>${showContent ? (textHtml ? textHtml : escapeHtml(text)) : ""}</span>
         ${showContent ? (extraContent || "") : ""}
+        ${weekToggleBtn}
         ${showContent && showRemoveButton ? `<button class="session-remove-btn" data-session-id="${escapeHtml(sessionId)}" type="button" title="Désaffecter">x</button>` : ""}
       </div>
     </div>
@@ -13490,6 +13500,62 @@ function bindSessionRemoveButtons(container) {
       logActivity("session_deleted", { sessionId, day: sess?.day, start: sess?.start, classId: sess?.classId, teacherId: sess?.teacherId });
     });
   });
+}
+
+function bindSessionWeekToggleButtons(container) {
+  container.querySelectorAll("[data-session-week-toggle]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const sessionId = String(btn.dataset.sessionWeekToggle || "").trim();
+      if (!sessionId) return;
+      await toggleSessionWeekType(sessionId);
+    });
+  });
+}
+
+async function toggleSessionWeekType(sessionId) {
+  const session = state.sessions.find((s) => s.id === sessionId);
+  if (!session || normalizeCadence(session.cadence) !== "BIWEEKLY") return;
+  const newWeekType = normalizeWeekType(session.weekType) === "A" ? "B" : "A";
+  const candidate = { ...session, weekType: newWeekType };
+  const special = isSpecialAssignmentId(session.classId);
+
+  const teacherConflict = state.sessions.find(
+    (s) => s.id !== session.id && s.teacherId === session.teacherId && sessionsConflict(candidate, s)
+  );
+  if (teacherConflict) {
+    if (ui.sessionError) {
+      ui.sessionError.textContent = `Conflit: ${getTeacherDisplayLabel(state.teachers.find((t) => t.id === session.teacherId))} a déjà un cours sur ce créneau en semaine ${newWeekType} (${teacherConflict.day} ${teacherConflict.start}).`;
+    }
+    return;
+  }
+  if (!special) {
+    const classConflict = state.sessions.find(
+      (s) => s.id !== session.id && s.classId === session.classId && sessionsConflict(candidate, s)
+    );
+    if (classConflict) {
+      if (ui.sessionError) {
+        ui.sessionError.textContent = `Conflit: la classe ${getClassLabelById(session.classId)} est déjà occupée sur ce créneau en semaine ${newWeekType} (${classConflict.day} ${classConflict.start}).`;
+      }
+      return;
+    }
+  }
+
+  try {
+    await updateDoc(doc(db, "sessions", sessionId), { weekType: newWeekType, updatedAt: serverTimestamp() });
+    if (ui.sessionError) ui.sessionError.textContent = "";
+    logActivity("session_week_type_changed", {
+      sessionId,
+      day: session.day,
+      start: session.start,
+      classId: session.classId,
+      teacherId: session.teacherId,
+      newWeekType,
+    });
+  } catch (error) {
+    if (ui.sessionError) ui.sessionError.textContent = `Erreur: ${error?.message || "modification impossible."}`;
+  }
 }
 
 async function moveSessionByDrag(sessionId, targetTeacherId, targetDay, targetSlot, options = {}) {

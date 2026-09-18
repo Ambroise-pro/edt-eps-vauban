@@ -3138,6 +3138,15 @@ td:nth-child(n+2) {
   padding: 0;
 }
 
+.session-week-toggle-btn.session-remove-btn {
+  background: #0b7285;
+  font-weight: 800;
+}
+
+.session-week-toggle-btn.session-remove-btn:hover {
+  background: #095c6b;
+}
+
 .slot-action {
   width: 100%;
   min-height: 32px;
