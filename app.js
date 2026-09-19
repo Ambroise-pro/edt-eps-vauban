@@ -7376,15 +7376,13 @@ function renderAbsencePanel() {
 function buildReplacementEmailPayload() {
   const to = String(ui.replacementEmailTo?.value || "").trim();
   const replacements = [...state.replacements].sort((a, b) => {
-    const startCmp = String(a.startDate || "").localeCompare(String(b.startDate || ""), "fr");
-    if (startCmp !== 0) return startCmp;
-    const dayA = DAYS.indexOf(String(state.sessions.find((s) => s.id === a.sessionId)?.day || ""));
-    const dayB = DAYS.indexOf(String(state.sessions.find((s) => s.id === b.sessionId)?.day || ""));
-    if (dayA !== dayB) return dayA - dayB;
-    return String(state.sessions.find((s) => s.id === a.sessionId)?.start || "").localeCompare(
-      String(state.sessions.find((s) => s.id === b.sessionId)?.start || ""),
-      "fr"
-    );
+    const sessionA = state.sessions.find((s) => s.id === a.sessionId);
+    const sessionB = state.sessions.find((s) => s.id === b.sessionId);
+    // Trier sur la date réelle de CHAQUE séance (pas r.startDate, qui n'est que le début
+    // de la période du remplacement) pour que l'ordre des lignes suive le calendrier.
+    const dateCmp = getReplacementSessionDateIso(a, sessionA).localeCompare(getReplacementSessionDateIso(b, sessionB), "fr");
+    if (dateCmp !== 0) return dateCmp;
+    return String(sessionA?.start || "").localeCompare(String(sessionB?.start || ""), "fr");
   });
   const rows = replacements
     .map((r) => {
@@ -7393,7 +7391,11 @@ function buildReplacementEmailPayload() {
       const fromTeacher = state.teachers.find((t) => t.id === r.fromTeacherId);
       if (!session || !toTeacher || !fromTeacher) return null;
       const classLabel = getClassLabelById(session.classId, true);
-      const dateTimeLabel = formatReplacementMailDateTime(r.startDate, session.start, session.day);
+      const dateTimeLabel = formatReplacementMailDateTime(
+        getReplacementSessionDateIso(r, session),
+        session.start,
+        session.day
+      );
       return {
         fromTeacher: fromTeacher.name || "Professeur absent",
         toTeacher: toTeacher.name || "Professeur remplaçant",
@@ -7454,6 +7456,34 @@ function formatReplacementMailDateTime(isoDate, startTime, fallbackDay) {
   }
   const dateLabel = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   return `${dateLabel} ${timeLabel}`.trim();
+}
+
+// r.startDate est le début de la PÉRIODE du remplacement (souvent le premier jour de
+// l'absence), pas forcément le jour réel de CETTE séance: une absence de plusieurs jours
+// remplace des cours différents (lundi, mardi, ...) qui partagent la même période, donc
+// utiliser r.startDate tel quel affichait le même jour pour tous. Cherche plutôt, dans la
+// période du remplacement, la date qui correspond réellement au jour de la séance.
+function getReplacementSessionDateIso(replacement, session) {
+  const fallback = String(replacement?.startDate || "");
+  const dayIndex = DAYS.indexOf(String(session?.day || ""));
+  if (dayIndex < 0) return fallback;
+  const start = parseIsoDate(replacement?.startDate);
+  if (Number.isNaN(start.getTime())) return fallback;
+  const end = parseIsoDate(replacement?.endDate || replacement?.startDate);
+  const rangeEnd = Number.isNaN(end.getTime()) ? start : end;
+
+  let monday = getMonday(start);
+  const endMonday = getMonday(rangeEnd);
+  let guard = 0;
+  while (monday <= endMonday && guard < 200) {
+    const candidate = addDays(monday, dayIndex);
+    if (candidate >= start && candidate <= rangeEnd) {
+      return toIsoDate(candidate);
+    }
+    monday = addDays(monday, 7);
+    guard += 1;
+  }
+  return fallback;
 }
 
 function renderReplacementMailPreview() {
