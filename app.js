@@ -8756,13 +8756,25 @@ async function exportProgrammationPdf() {
 
   try {
     showToast("Génération du PDF en cours...", "info");
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    // Portrait plutôt que paysage: en paysage, une journée chargée (beaucoup de lignes)
+    // dépassait la hauteur disponible et devait être réduite pour tenir — ce qui
+    // rétrécissait aussi sa largeur, donnant des tableaux de largeurs différentes d'une
+    // page à l'autre. Le format portrait offre plus de hauteur disponible par rapport à
+    // la largeur, donc les tableaux restent à pleine largeur sur (quasiment) toutes les
+    // pages, quel que soit le nombre de créneaux du jour.
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 8;
 
     for (let i = 0; i < orderedDays.length; i++) {
       const day = orderedDays[i];
+      // html2canvas (son iframe/cache interne de clonage) n'a pas toujours fini de se
+      // nettoyer avant l'appel suivant lorsqu'ils s'enchaînent immédiatement sur une
+      // grosse capture (beaucoup de créneaux ce jour-là) — l'appel suivant peut alors
+      // échouer avec "Unable to find element in cloned iframe". Une courte pause laisse
+      // ce nettoyage se terminer.
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, 100));
       // Capture la table RÉELLE (mêmes couleurs/styles que l'écran), en ne gardant dans
       // le clone rendu que les lignes de ce jour: pas de reconstruction indépendante qui
       // pourrait diverger visuellement de ce qui est affiché dans Programmation.
