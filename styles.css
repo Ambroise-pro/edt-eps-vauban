@@ -8180,3 +8180,329 @@ button:hover {
     background: #ffffff;
   }
 }
+
+/* ============================================================
+   Direction visuelle 3 — maquette "Accueil EDT public"
+   Remplace la palette chaleureuse et le durcissement noir / blanc /
+   carré précédents : sidebar bleu marine, cartes et contrôles
+   arrondis, puces de planning et tableau d'absences assouplis.
+   ============================================================ */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-soft: #f3f5f8;
+  --surface-strong: #e7edf5;
+  --text: #1a2432;
+  --muted: #6b7686;
+  --border: #dbe1ea;
+  --primary: #002b5b;
+  --primary-strong: #001736;
+  --secondary: #0b4f8a;
+  --secondary-soft: #e7edf5;
+  --danger: #b4452f;
+  --ok: #1f7a42;
+  --shadow-soft: 0 10px 24px rgba(15, 27, 42, 0.06);
+  --shadow-card: 0 14px 32px rgba(15, 27, 42, 0.08);
+}
+
+body {
+  font-family: "Source Sans 3", "Manrope", "Segoe UI", Tahoma, sans-serif;
+  background: #f3f5f8;
+}
+
+.brand-text h1,
+.card h2,
+.card h3,
+.card h4,
+.dashboard-hero h3,
+.mobile-day-card-head h4,
+.admin-mobile-header strong,
+.admin-tab-brand strong {
+  font-family: "Manrope", "Sora", sans-serif;
+}
+
+/* Rétablit des coins arrondis partout où un "durcissement" précédent
+   avait forcé border-radius: 0 !important sur ces mêmes sélecteurs. */
+.topbar,
+.card,
+.modal-card,
+.table-wrap,
+input,
+select,
+textarea,
+button,
+.secondary-btn,
+.delete-btn,
+.summary-box,
+.admin-tabs-horizontal,
+.admin-tabs-horizontal button,
+.admin-data-menu > summary,
+.admin-data-menu-list,
+.teacher-picker-card,
+.teacher-picker-class-group,
+.mode-switch,
+.school-year-badge-mobile,
+.floating-bubble,
+.floating-assign-content {
+  border-radius: 10px !important;
+}
+
+.card,
+.modal-card,
+.table-wrap,
+.admin-data-menu-list,
+.dashboard-hero,
+.dashboard-table-card,
+.mobile-day-card {
+  border-radius: 16px !important;
+}
+
+.public-week-nav-minimal,
+.public-week-nav {
+  border-radius: 12px !important;
+}
+
+.public-chip,
+.teacher-picker-done,
+#logoutBtn {
+  border-radius: 999px !important;
+}
+
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.topbar h1 {
+  color: var(--text);
+}
+
+.brand-kicker {
+  color: #8b95a3;
+}
+
+.school-year-badge-mobile {
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.fullscreen-nav-btn,
+.notification-bell-btn,
+.app-sidebar-launcher {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: var(--primary);
+}
+
+.fullscreen-nav-btn:hover,
+.notification-bell-btn:hover,
+.app-sidebar-launcher:hover {
+  background: var(--surface-strong);
+}
+
+/* --- Sidebar bleu marine (navigation principale) --- */
+#adminShell.app-shell-global .admin-tabs-horizontal {
+  background: var(--primary);
+  border-right: none;
+}
+
+#adminShell.app-shell-global .admin-tabs-horizontal button,
+#adminShell.app-shell-global .admin-data-menu > summary {
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+#adminShell.app-shell-global .admin-tabs-horizontal button:hover,
+#adminShell.app-shell-global .admin-data-menu > summary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+#adminShell.app-shell-global .admin-tabs-horizontal button.active,
+#adminShell.app-shell-global .admin-data-menu.active > summary,
+#adminShell.app-shell-global .admin-data-menu[open] > summary,
+#adminShell.app-shell-global .admin-data-menu-list button.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#adminShell.app-shell-global .admin-data-menu-list {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+#adminShell.app-shell-global .admin-data-menu-list button {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+#adminShell.app-shell-global .admin-data-menu-list button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+#adminShell.app-shell-global .admin-data-menu-caret {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-sidebar-divider {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+#adminShell.app-shell-global .admin-sidebar-bottom-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+#adminShell.app-shell-global .admin-sidebar-bottom-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.app-content-panels {
+  background: #f3f5f8;
+}
+
+/* --- Boutons & champs --- */
+.card {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  background: #ffffff;
+}
+
+.summary-box {
+  background: #f8f9fb;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #ffffff;
+  box-shadow: none !important;
+}
+
+button:hover {
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+}
+
+.secondary-btn,
+.delete-btn {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.secondary-btn:hover {
+  background: var(--surface-strong);
+}
+
+.delete-btn {
+  color: var(--danger);
+  border-color: #f1d4cc;
+  background: #fdeeec;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(11, 79, 138, 0.14);
+}
+
+.mode-switch {
+  background: #ffffff;
+  border: 1px solid var(--border);
+}
+
+.mode-switch button.active {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+/* --- Planning public : puces et navigation de semaine --- */
+#publicTimetableContainer .slot-block {
+  border-radius: 9px;
+}
+
+.public-week-nav-minimal {
+  background: #ffffff;
+}
+
+.public-week-nav-minimal .secondary-btn {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+}
+
+.public-week-nav-minimal .secondary-btn:hover {
+  background: var(--surface-strong);
+}
+
+.public-chip-week {
+  background: #e7edf5;
+  color: var(--primary);
+}
+
+.public-chip-type {
+  background: #e6f7f0;
+  color: var(--ok);
+}
+
+.public-chip-ok {
+  background: #e6f7f0;
+  color: var(--ok);
+}
+
+.public-chip-warn {
+  background: #fdeeec;
+  color: var(--danger);
+}
+
+/* --- Tableau "Absences & remplacements" façon maquette --- */
+.public-absence-table thead th {
+  background: #f8f9fb;
+  color: #8b95a3;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.public-absence-table [data-public-propose] {
+  border: 1px solid #cfe0d4;
+  background: #eef8f0;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.public-absence-table [data-public-propose]:hover {
+  background: #e1f1e5;
+}
+
+.public-absence-table [data-view-my-edt-week] {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 700;
+}
