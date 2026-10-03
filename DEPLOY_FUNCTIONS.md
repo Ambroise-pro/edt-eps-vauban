@@ -14,16 +14,18 @@ npm install -g firebase-tools
 firebase login
 ```
 
-### Étape 2 : Configurer Brevo dans Firebase (1 min)
+### Étape 2 : Configurer le compte Gmail expéditeur (2 min)
 
-1. **Ouvrir Firebase Console** : https://console.firebase.google.com/
-2. **Sélectionner le projet** : `emploi-du-temps-1644e`
-3. **Aller à** : Cloud Functions
-4. **Cliquer** : Runtime settings (roue dentée)
-5. **Ajouter variable d'environnement** :
-   - **Nom** : `BREVO_API_KEY`
-   - **Valeur** : Votre clé API Brevo/Sendinblue
-6. **Cliquer** : Enregistrer
+1. Sur le compte Gmail expéditeur (`ambroise.lepannerer@gmail.com`), activer la
+   **validation en 2 étapes** : Compte Google → Sécurité → Validation en 2 étapes.
+2. Générer un **mot de passe d'application** (16 caractères) : Compte Google →
+   Sécurité → Validation en 2 étapes → Mots de passe des applications.
+   Ne jamais utiliser le vrai mot de passe du compte.
+3. Stocker ce mot de passe dans Secret Manager :
+   ```bash
+   firebase functions:secrets:set GMAIL_APP_PASSWORD
+   # Coller le mot de passe d'application (16 caractères, sans espaces)
+   ```
 
 ### Étape 3 : Déployer les functions (2 min)
 
@@ -37,14 +39,16 @@ Attendre la confirmation :
 ✔ sendTaskAssignedEmail
 ✔ sendTaskStatusChangeEmail
 ✔ sendCommentNotificationEmail
-✔ sendDeadlineReminders
+✔ sendReplacementNotification
+✔ sendEdtInvitation
 ✔ sendTestEmail
+✔ sendReplacementNotifications
 ```
 
 ### Étape 4 : Vérifier le déploiement (1 min)
 
 1. **Firebase Console** → **Cloud Functions**
-2. **Vérifier** que les 5 fonctions sont listées ✅
+2. **Vérifier** que les 7 fonctions sont listées ✅
 3. **Status** : ACTIVE (vert)
 
 ### Étape 5 : Redéployer l'app OVH
@@ -56,10 +60,10 @@ npm run build
 
 ### Étape 6 : Tester dans l'app
 
-1. **Ouvrir l'app** : https://tondomaine.com/edt/
+1. **Ouvrir l'app**
 2. **Aller à** : Préférences de notifications (⚙️ dans le menu)
 3. **Cliquer** : "Envoyer un email de test"
-4. **Vérifier** : Email arrivé à `edt@eps.ovh` ✅
+4. **Vérifier** : Email arrivé à l'adresse du compte connecté ✅
 
 ---
 
@@ -71,21 +75,23 @@ Les emails seront envoyés automatiquement pour :
 - 📋 Tâche assignée
 - 📊 Changement de statut
 - 💬 Nouveau commentaire
-- ⏰ Rappel date limite
+- 🎯 Opportunité de remplacement proposée
+- ✅/❌ Décision sur une candidature de remplacement
 
 ---
 
 ## 🆘 Troubleshooting
 
-### Erreur : "BREVO_API_KEY not defined"
-→ Revérifier étape 2, la variable doit être exacte
+### Erreur d'authentification SMTP (535, "Username and Password not accepted")
+→ Revérifier étape 2 : validation en 2 étapes activée + mot de passe d'application
+régénéré dans Secret Manager, puis redéployer.
 
 ### Erreur : "Deploy failed"
 → Vérifier la connexion : `firebase login` puis redéployer
 
 ### Pas d'email de test reçu
 → Vérifier le dossier SPAM
-→ Vérifier l'adresse `edt@eps.ovh` est activée dans Brevo Console
+→ Vérifier les logs de la fonction dans Firebase Console
 
 ### Functions montrent comme "OFFLINE"
 → Attendre 5 minutes après le déploiement
@@ -95,8 +101,9 @@ Les emails seront envoyés automatiquement pour :
 
 ## 📞 Support
 
-- **Brevo Support** : https://www.brevo.com/fr/contact/
 - **Firebase Docs** : https://firebase.google.com/docs/functions
+- **Secret Manager** : https://firebase.google.com/docs/functions/config-env#secret-manager
+- **Mots de passe d'application Gmail** : https://support.google.com/accounts/answer/185833
 - **Guide complet** : Lire `functions/README.md`
 - **Guide utilisateur** : Lire `NOTIFICATIONS_GUIDE.md`
 

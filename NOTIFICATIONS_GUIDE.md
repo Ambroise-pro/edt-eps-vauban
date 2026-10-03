@@ -52,14 +52,14 @@ Après modification, cliquer **"Sauvegarder"** pour valider les changements.
 
 - Vérifier votre **boîte de réception**
 - Si absent, vérifier le **dossier SPAM** (Courrier indésirable)
-- Assurer que l'email est bien activé dans **Brevo**
+- Vérifier les logs de la fonction dans la Console Firebase si rien n'arrive
 
 ## 📨 Types d'emails
 
 ### Email : Nouvelle tâche assignée
 
 ```
-De : EDT EPS <edt@eps.ovh>
+De : EDT EPS Vauban <ambroise.lepannerer@gmail.com>
 Objet : 🎯 Nouvelle tâche : [Titre]
 
 Corps :

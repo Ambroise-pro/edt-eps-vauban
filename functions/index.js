@@ -1,55 +1,16 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const axios = require("axios");
 const { onCall } = require("firebase-functions/v2/https");
+const { sendEmail, GMAIL_APP_PASSWORD } = require("./mailer");
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
 const db = admin.firestore();
 
-// Configuration Brevo
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_SENDER_EMAIL = "ambroise.lepannerer@gmail.com";
-const BREVO_SENDER_NAME = "EDT EPS Vauban";
-
-/**
- * Envoyer un email via Brevo
- */
-async function sendEmailWithBrevo(to, subject, htmlContent) {
-  try {
-    if (!BREVO_API_KEY) {
-      throw new Error("BREVO_API_KEY environment variable is not set");
-    }
-
-    console.log(`Envoi email à ${to} avec clé API:`, BREVO_API_KEY.substring(0, 20) + "...");
-
-    const response = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      {
-        to: [{ email: to }],
-        sender: {
-          name: BREVO_SENDER_NAME,
-          email: BREVO_SENDER_EMAIL,
-        },
-        subject,
-        htmlContent,
-      },
-      {
-        headers: {
-          "api-key": BREVO_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log(`Email envoyé à ${to}:`, response.status);
-    return response.data;
-  } catch (error) {
-    console.error(`Erreur envoi email à ${to}:`, error.response?.status, error.response?.data || error.message);
-    throw error;
-  }
-}
+// Chaque fonction qui envoie un email doit déclarer `secrets: [GMAIL_APP_PASSWORD]`
+// dans ses options pour recevoir le mot de passe d'application Gmail à l'exécution
+// (voir mailer.js et README.md).
 
 /**
  * Obtenir l'email d'un prof
@@ -136,7 +97,9 @@ function getTaskAssignedEmailTemplate(task, teacherName) {
 /**
  * Cloud Function : Envoyer un email quand une tâche est créée
  */
-exports.sendTaskAssignedEmail = functions.firestore.onDocumentCreated("tasks/{taskId}", async (event) => {
+exports.sendTaskAssignedEmail = functions.firestore.onDocumentCreated(
+  { document: "tasks/{taskId}", secrets: [GMAIL_APP_PASSWORD] },
+  async (event) => {
   const task = event.data.data();
   const taskId = event.data.id;
 
@@ -163,7 +126,7 @@ exports.sendTaskAssignedEmail = functions.firestore.onDocumentCreated("tasks/{ta
 
         const htmlContent = getTaskAssignedEmailTemplate(task, teacherName);
 
-        await sendEmailWithBrevo(
+        await sendEmail(
           email,
           `🎯 Nouvelle tâche : ${task.title}`,
           htmlContent
@@ -180,7 +143,9 @@ exports.sendTaskAssignedEmail = functions.firestore.onDocumentCreated("tasks/{ta
 /**
  * Cloud Function : Envoyer un email quand le statut change
  */
-exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated("tasks/{taskId}", async (event) => {
+exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated(
+  { document: "tasks/{taskId}", secrets: [GMAIL_APP_PASSWORD] },
+  async (event) => {
   const before = event.data.before.data();
   const after = event.data.after.data();
   const taskId = event.data.after.id;
@@ -231,7 +196,7 @@ exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated("tasks
           </html>
         `;
 
-        await sendEmailWithBrevo(
+        await sendEmail(
           email,
           `📊 Mise à jour tâche : ${after.title}`,
           htmlContent
@@ -248,7 +213,9 @@ exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated("tasks
 /**
  * Cloud Function : Envoyer un email quand un commentaire est ajouté
  */
-exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated("taskComments/{commentId}", async (event) => {
+exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated(
+  { document: "taskComments/{commentId}", secrets: [GMAIL_APP_PASSWORD] },
+  async (event) => {
   const comment = event.data.data();
   const taskId = comment.taskId;
 
@@ -296,7 +263,7 @@ exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated("ta
             </html>
           `;
 
-          await sendEmailWithBrevo(
+          await sendEmail(
             email,
             `💬 Nouveau commentaire sur ${taskData.title}`,
             htmlContent
@@ -316,7 +283,9 @@ exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated("ta
 /**
  * Cloud Function : Envoyer une notification quand un remplacement est créé
  */
-exports.sendReplacementNotification = functions.firestore.onDocumentCreated("replacements/{replacementId}", async (event) => {
+exports.sendReplacementNotification = functions.firestore.onDocumentCreated(
+  { document: "replacements/{replacementId}", secrets: [GMAIL_APP_PASSWORD] },
+  async (event) => {
   const replacement = event.data.data();
   const toTeacherId = replacement.toTeacherId;
 
@@ -409,7 +378,7 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated("rep
       </html>
     `;
 
-    await sendEmailWithBrevo(
+    await sendEmail(
       email,
       `🎯 Opportunité de remplacement : ${startDate}`,
       htmlContent
@@ -426,7 +395,7 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated("rep
 /**
  * Cloud Function : Envoyer une invitation à consulter l'EDT
  */
-exports.sendEdtInvitation = onCall(async (request) => {
+exports.sendEdtInvitation = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request) => {
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Authentification requise");
   }
@@ -499,7 +468,7 @@ exports.sendEdtInvitation = onCall(async (request) => {
           </html>
         `;
 
-        await sendEmailWithBrevo(
+        await sendEmail(
           email,
           `📅 Votre emploi du temps ${schoolYear} est disponible`,
           htmlContent
@@ -528,7 +497,7 @@ exports.sendEdtInvitation = onCall(async (request) => {
 // exports.sendDeadlineReminders = ...;
 
 // Cloud Function de test (v2 API)
-exports.sendTestEmail = onCall(async (request) => {
+exports.sendTestEmail = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request) => {
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Authentification requise");
   }
@@ -554,7 +523,7 @@ exports.sendTestEmail = onCall(async (request) => {
       throw new functions.https.HttpsError("invalid-argument", "Email non configuré dans le profil");
     }
 
-    await sendEmailWithBrevo(
+    await sendEmail(
       userEmail,
       "✅ Email de test - EDT EPS",
       `
@@ -581,7 +550,7 @@ exports.sendTestEmail = onCall(async (request) => {
 /**
  * Cloud Function : Envoyer les notifications de remplacement aux candidats
  */
-exports.sendReplacementNotifications = onCall(async (request) => {
+exports.sendReplacementNotifications = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request) => {
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Authentification requise");
   }
@@ -738,7 +707,7 @@ Pour toute question, contactez l'administration.
           .replace(/\$\{location\}/g, String(session?.location || "N/A"))
           .replace(/\$\{calendarData\}/g, icsBase64);
 
-        await sendEmailWithBrevo(
+        await sendEmail(
           teacher.email,
           isAccepted
             ? "✅ Votre candidature de remplacement a été acceptée"
