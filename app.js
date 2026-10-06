@@ -7088,9 +7088,6 @@ function evaluateReplacementCandidate(absence, session, teacher) {
   );
   if (teacherAbsent) reasons.push("Professeur absent sur la période");
 
-  const unavailable = slots.some((slotKey) => (teacher.unavailable || []).includes(slotKey));
-  if (unavailable) reasons.push("Indisponible sur ce créneau");
-
   const conflict = state.sessions.some(
     (s) => s.id !== session.id && s.teacherId === teacher.id && sessionsConflict(session, s)
   );
