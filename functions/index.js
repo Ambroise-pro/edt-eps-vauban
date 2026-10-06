@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { onCall } = require("firebase-functions/v2/https");
@@ -44,10 +45,44 @@ async function getUserNotificationPreferences(userId) {
       };
 }
 
+// URL de base de l'app, utilisée pour construire les liens de connexion sans
+// mot de passe envoyés dans les emails (mêmes jetons que le "Lien de connexion
+// unique" généré manuellement depuis la fiche prof).
+const APP_URL = "https://eps.ovh/edt";
+
+/**
+ * Renvoie le jeton de connexion sans mot de passe d'un prof, en le créant
+ * s'il n'en a pas encore (même mécanisme que le bouton "Générer" côté admin).
+ */
+async function getOrCreateLoginToken(teacherId, existingToken) {
+  if (existingToken) return existingToken;
+  try {
+    const token = crypto.randomUUID();
+    await db.collection("teachers").doc(teacherId).update({ loginToken: token });
+    return token;
+  } catch (error) {
+    console.error(`Impossible de générer le lien de connexion pour ${teacherId}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Bouton "Se connecter sans mot de passe" à insérer dans les emails.
+ */
+function buildLoginButtonHtml(token) {
+  if (!token) return "";
+  const url = `${APP_URL}/?token=${encodeURIComponent(token)}`;
+  return `
+    <div style="text-align: center; margin: 18px 0;">
+      <a href="${url}" style="background: #0b4f8a; color: #ffffff; padding: 11px 22px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold; font-size: 14px;">🔑 Se connecter sans mot de passe</a>
+    </div>
+  `;
+}
+
 /**
  * Template HTML pour email de tâche assignée
  */
-function getTaskAssignedEmailTemplate(task, teacherName) {
+function getTaskAssignedEmailTemplate(task, teacherName, loginButtonHtml) {
   return `
     <!DOCTYPE html>
     <html>
@@ -84,6 +119,7 @@ function getTaskAssignedEmailTemplate(task, teacherName) {
           </div>
 
           <a href="https://eps.ovh/edt?taskId=${task.id}" class="button">Voir la tâche</a>
+          ${loginButtonHtml || ""}
         </div>
         <div class="footer">
           <p>EDT EPS Vauban © 2026</p>
@@ -124,8 +160,9 @@ exports.sendTaskAssignedEmail = functions.firestore.onDocumentCreated(
 
         const teacher = await db.collection("teachers").doc(teacherId).get();
         const teacherName = teacher.data()?.name || "Enseignant";
+        const loginToken = await getOrCreateLoginToken(teacherId, teacher.data()?.loginToken);
 
-        const htmlContent = getTaskAssignedEmailTemplate(task, teacherName);
+        const htmlContent = getTaskAssignedEmailTemplate(task, teacherName, buildLoginButtonHtml(loginToken));
 
         await sendEmail(
           email,
@@ -168,6 +205,9 @@ exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated(
         const prefs = await getUserNotificationPreferences(teacherId);
         if (!prefs.taskStatusChange) continue;
 
+        const teacherDoc = await db.collection("teachers").doc(teacherId).get();
+        const loginToken = await getOrCreateLoginToken(teacherId, teacherDoc.data()?.loginToken);
+
         const htmlContent = `
           <!DOCTYPE html>
           <html>
@@ -191,6 +231,7 @@ exports.sendTaskStatusChangeEmail = functions.firestore.onDocumentUpdated(
               <div class="content">
                 <p>La tâche <strong>${after.title}</strong> a changé de statut.</p>
                 <p><span class="status-badge status-${after.status.toLowerCase()}">${after.status.replace("_", " ")}</span></p>
+                ${buildLoginButtonHtml(loginToken)}
               </div>
             </div>
           </body>
@@ -245,6 +286,9 @@ exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated(
           const author = await db.collection("teachers").doc(authorId).get();
           const authorName = author.data()?.name || "Un utilisateur";
 
+          const recipientDoc = await db.collection("teachers").doc(teacherId).get();
+          const loginToken = await getOrCreateLoginToken(teacherId, recipientDoc.data()?.loginToken);
+
           const htmlContent = `
             <!DOCTYPE html>
             <html>
@@ -258,6 +302,7 @@ exports.sendCommentNotificationEmail = functions.firestore.onDocumentCreated(
                   <div style="background: white; padding: 15px; border-left: 4px solid #002b5b; margin: 15px 0;">
                     <p>${comment.text}</p>
                   </div>
+                  ${buildLoginButtonHtml(loginToken)}
                 </div>
               </div>
             </body>
@@ -334,6 +379,7 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated(
 
     const startDate = new Date(replacement.startDate).toLocaleDateString("fr-FR");
     const endDate = new Date(replacement.endDate).toLocaleDateString("fr-FR");
+    const loginToken = await getOrCreateLoginToken(toTeacherId, replacer.loginToken);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -369,6 +415,7 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated(
             </div>
 
             <a href="https://eps.ovh/edt" class="button">Consulter les détails</a>
+            ${buildLoginButtonHtml(loginToken)}
           </div>
           <div class="footer">
             <p>EDT EPS Vauban © 2026</p>
@@ -429,6 +476,8 @@ exports.sendReplacementOpportunityEmails = onCall({ secrets: [GMAIL_APP_PASSWORD
         continue;
       }
 
+      const loginToken = await getOrCreateLoginToken(teacherId, teacher.loginToken);
+
       const sessionsHtml = sessions
         .map(
           (s) => `
@@ -467,6 +516,7 @@ exports.sendReplacementOpportunityEmails = onCall({ secrets: [GMAIL_APP_PASSWORD
               ${sessionsHtml}
               <p>Si un créneau vous intéresse, connectez-vous à l'application et cliquez sur "Je me propose".</p>
               <a href="https://eps.ovh/edt" class="button">Voir les absences</a>
+              ${buildLoginButtonHtml(loginToken)}
             </div>
             <div class="footer">
               <p>EDT EPS Vauban © 2026</p>
@@ -523,6 +573,8 @@ exports.sendEdtInvitation = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (req
 
         if (!email) continue;
 
+        const loginToken = await getOrCreateLoginToken(teacherId, teacher.loginToken);
+
         const edtImageHtml = request.data.edtImage ? `
           <div style="margin: 20px 0; text-align: center;">
             <p style="font-weight: bold; margin-bottom: 10px;">Aperçu de votre emploi du temps :</p>
@@ -556,6 +608,7 @@ exports.sendEdtInvitation = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (req
                 ${edtImageHtml}
                 <p>Consultez le planning complet en cliquant sur le lien ci-dessous :</p>
                 <a href="https://eps.ovh/edt" class="button">📊 Consulter mon EDT</a>
+                ${buildLoginButtonHtml(loginToken)}
                 <p style="margin-top: 30px; color: #666; font-size: 14px;">
                   Vous pouvez également accéder à votre emploi du temps à tout moment via l'application.
                 </p>
@@ -624,6 +677,8 @@ exports.sendTestEmail = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request
       throw new functions.https.HttpsError("invalid-argument", "Email non configuré dans le profil");
     }
 
+    const loginToken = await getOrCreateLoginToken(teacherId, teacher.loginToken);
+
     await sendEmail(
       userEmail,
       "✅ Email de test - EDT EPS",
@@ -635,6 +690,7 @@ exports.sendTestEmail = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request
               <h1>✅ Email de test</h1>
               <p>Si vous recevez ce message, le système de notifications par email fonctionne correctement !</p>
             </div>
+            ${buildLoginButtonHtml(loginToken)}
           </div>
         </body>
         </html>
@@ -753,6 +809,8 @@ END:VCALENDAR`;
 
         const isAccepted = offer.id === acceptedOfferId;
         const status = isAccepted ? "✅ ACCEPTÉE" : "❌ REJETÉE";
+        const loginToken = await getOrCreateLoginToken(offer.candidateTeacherId, teacher.loginToken);
+        const loginButtonHtml = buildLoginButtonHtml(loginToken);
 
         // Utiliser le template personnalisé ou le template par défaut
         const defaultTemplate = `<html>
@@ -779,6 +837,7 @@ ${isAccepted ? `<div style="background: #d8f3ee; border-left: 4px solid #006b5f;
 </div>` : `<div style="background: #fff2f1; border-left: 4px solid #ba1a1a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
 <p style="margin: 0;">Malheureusement, votre candidature pour ce remplacement n'a pas été retenue. D'autres créneaux pourraient être disponibles ultérieurement.</p>
 </div>`}
+\${loginButton}
 <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
 Pour toute question, contactez l'administration.
 </p>
@@ -806,7 +865,8 @@ Pour toute question, contactez l'administration.
           .replace(/\$\{sessionEnd\}/g, String(session?.endTime || "N/A"))
           .replace(/\$\{level\}/g, String(session?.level || "N/A"))
           .replace(/\$\{location\}/g, String(session?.location || "N/A"))
-          .replace(/\$\{calendarData\}/g, icsBase64);
+          .replace(/\$\{calendarData\}/g, icsBase64)
+          .replace(/\$\{loginButton\}/g, loginButtonHtml);
 
         await sendEmail(
           teacher.email,
