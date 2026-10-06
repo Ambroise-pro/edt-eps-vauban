@@ -8506,3 +8506,99 @@ textarea:focus {
   color: var(--text);
   font-weight: 700;
 }
+
+/* --- Grille "Planning hebdomadaire" (Accueil) façon maquette --- */
+#publicTimetableContainer.table-wrap {
+  border: 1px solid var(--border);
+  overflow: hidden;
+  border-radius: 16px !important;
+}
+
+#publicTimetableContainer table {
+  border: none;
+}
+
+#publicTimetableContainer th,
+#publicTimetableContainer td {
+  border: none;
+  border-bottom: 1px solid #eef1f5;
+  padding: 0.65rem 0.55rem;
+  min-width: 0;
+}
+
+#publicTimetableContainer th:nth-child(n + 2),
+#publicTimetableContainer td:nth-child(n + 2) {
+  border-left: 1px solid #eef1f5;
+}
+
+#publicTimetableContainer th {
+  background: #ffffff;
+  color: var(--text);
+  font-family: "Manrope", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+#publicTimetableContainer th:first-child {
+  background: #ffffff;
+}
+
+#publicTimetableContainer table {
+  table-layout: auto;
+}
+
+#publicTimetableContainer th:first-child,
+#publicTimetableContainer .time-label {
+  width: 96px;
+}
+
+#publicTimetableContainer .time-label {
+  background: #ffffff;
+  color: #8b95a3;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+#publicTimetableContainer .slot {
+  background: #ffffff;
+  vertical-align: top;
+}
+
+#publicTimetableContainer .slot-vacation {
+  background: #f8f9fb;
+}
+
+#publicTimetableContainer .friday-time-th,
+#publicTimetableContainer .friday-time-td,
+#publicTimetableContainer .friday-time-same {
+  color: #8b95a3;
+  background: #ffffff;
+  border-left: 1px solid #eef1f5 !important;
+}
+
+#publicTimetableContainer .slot-friday-merged {
+  background: #ffffff;
+  border-left: 1px solid #eef1f5 !important;
+}
+
+#publicTimetableContainer .slot-block {
+  border-radius: 9px;
+  padding: 0.5rem 0.6rem;
+  margin: 0.18rem 0;
+  border-left-width: 3px;
+}
+
+#publicTimetableContainer .public-session-main {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#publicTimetableContainer .public-session-sub {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
