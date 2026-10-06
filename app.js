@@ -6753,19 +6753,67 @@ async function saveAbsenceRecord() {
   }
 
   try {
-    await addDoc(collection(db, "absences"), {
-      schoolYearId: getActiveSchoolYearId(),
-      teacherId,
-      startDate,
-      endDate,
-      reason: reason || null,
-      status: "ACTIVE",
+    const absenceData = { schoolYearId: getActiveSchoolYearId(), teacherId, startDate, endDate, reason: reason || null, status: "ACTIVE" };
+    const docRef = await addDoc(collection(db, "absences"), {
+      ...absenceData,
       createdAt: serverTimestamp(),
     });
     ui.absenceHint.textContent = "Absence enregistrée.";
     if (ui.absenceReason) ui.absenceReason.value = "";
+    notifyReplacementOpportunities({ id: docRef.id, ...absenceData });
   } catch (error) {
     ui.absenceHint.textContent = `Erreur absence: ${error?.message || "enregistrement impossible."}`;
+  }
+}
+
+/**
+ * Prévient par email chaque professeur compatible avec au moins un des
+ * créneaux laissés vacants par une absence qui vient d'être déclarée, pour
+ * qu'il puisse se proposer en remplacement.
+ */
+async function notifyReplacementOpportunities(absence) {
+  try {
+    const affected = state.sessions
+      .filter((s) => s.teacherId === absence.teacherId)
+      .map((session) => ({ session, occurrences: getImpactedOccurrencesForAbsence(absence, session) }))
+      .filter((entry) => entry.occurrences.length > 0);
+
+    if (!affected.length) return;
+
+    const byTeacher = new Map();
+    for (const { session, occurrences } of affected) {
+      const dateLabel = occurrences.map((o) => formatDateFrShort(parseIsoDate(o.dateIso))).join(", ");
+      const sessionEntry = {
+        day: session.day,
+        start: session.start,
+        duration: session.duration,
+        classLabel: getClassLabelById(session.classId, true),
+        dateLabel,
+      };
+      for (const teacher of state.teachers) {
+        if (teacher.id === absence.teacherId) continue;
+        const check = evaluateReplacementCandidate(absence, session, teacher);
+        if (!check.compatible) continue;
+        if (!byTeacher.has(teacher.id)) byTeacher.set(teacher.id, []);
+        byTeacher.get(teacher.id).push(sessionEntry);
+      }
+    }
+
+    if (!byTeacher.size) return;
+
+    const absentTeacher = state.teachers.find((t) => t.id === absence.teacherId);
+    const notifications = Array.from(byTeacher.entries()).map(([teacherId, sessions]) => ({ teacherId, sessions }));
+
+    await callCloudFunction("sendReplacementOpportunityEmails", {
+      absenceId: absence.id,
+      absentTeacherName: absentTeacher?.name || "Un professeur",
+      reason: absence.reason || "",
+      startDate: formatIsoDateFr(absence.startDate),
+      endDate: formatIsoDateFr(absence.endDate),
+      notifications,
+    });
+  } catch (error) {
+    console.error("Erreur notification opportunités de remplacement:", error);
   }
 }
 

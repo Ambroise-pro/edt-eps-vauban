@@ -39,6 +39,7 @@ async function getUserNotificationPreferences(userId) {
         taskStatusChange: true,
         commentNotifications: true,
         deadlineReminders: true,
+        replacementNotifications: true,
         digestFrequency: "immediate",
       };
 }
@@ -390,6 +391,106 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated(
   }
 
   return null;
+});
+
+/**
+ * Cloud Function : Prévenir les professeurs compatibles qu'une absence vient
+ * d'être déclarée, pour qu'ils puissent se proposer en remplacement.
+ * Le calcul des créneaux concernés et des profs compatibles est fait côté
+ * client (app.js), qui fournit ici une liste prête à l'emploi par prof.
+ */
+exports.sendReplacementOpportunityEmails = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentification requise");
+  }
+
+  const { absentTeacherName, reason, startDate, endDate, notifications } = request.data || {};
+
+  if (!Array.isArray(notifications) || !notifications.length) {
+    throw new functions.https.HttpsError("invalid-argument", "notifications manquantes");
+  }
+
+  let sentCount = 0;
+
+  for (const entry of notifications) {
+    const teacherId = entry?.teacherId;
+    const sessions = Array.isArray(entry?.sessions) ? entry.sessions : [];
+    if (!teacherId || !sessions.length) continue;
+
+    try {
+      const teacherDoc = await db.collection("teachers").doc(teacherId).get();
+      if (!teacherDoc.exists) continue;
+      const teacher = teacherDoc.data();
+      if (!teacher.email) continue;
+
+      const prefs = await getUserNotificationPreferences(teacherId);
+      if (!prefs.replacementNotifications) {
+        console.log(`Notifications de remplacement désactivées pour ${teacherId}`);
+        continue;
+      }
+
+      const sessionsHtml = sessions
+        .map(
+          (s) => `
+            <div class="detail-box">
+              <p><strong>${s.day || ""} ${s.start || ""}</strong>${s.duration ? ` (${s.duration}h)` : ""} — ${s.classLabel || ""}</p>
+              ${s.dateLabel ? `<p style="margin:4px 0 0;color:#666;font-size:13px;">${s.dateLabel}</p>` : ""}
+            </div>`
+        )
+        .join("");
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: Arial, sans-serif; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #0b4f8a; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { background: #f8f9fa; padding: 20px; border: 1px solid #ddd; }
+            .detail-box { background: white; padding: 12px 15px; border-left: 4px solid #0b4f8a; margin: 12px 0; }
+            .button { background: #0b4f8a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px; }
+            .footer { background: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #999; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🙋 Remplacement à pourvoir</h1>
+            </div>
+            <div class="content">
+              <p>Bonjour ${teacher.name || "Enseignant"},</p>
+              <p><strong>${absentTeacherName || "Un professeur"}</strong> est absent du ${startDate || ""} au ${endDate || ""}${reason ? ` (${reason})` : ""}.</p>
+              <p>Vous êtes compatible pour prendre le(s) créneau(x) suivant(s) :</p>
+              ${sessionsHtml}
+              <p>Si un créneau vous intéresse, connectez-vous à l'application et cliquez sur "Je me propose".</p>
+              <a href="https://eps.ovh/edt" class="button">Voir les absences</a>
+            </div>
+            <div class="footer">
+              <p>EDT EPS Vauban © 2026</p>
+              <p>Vous recevez cet email car vous êtes compatible avec ce remplacement.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await sendEmail(
+        teacher.email,
+        `🙋 Remplacement à pourvoir : ${startDate || ""}`,
+        htmlContent
+      );
+      sentCount++;
+    } catch (error) {
+      console.error(`Erreur envoi opportunité de remplacement à ${teacherId}:`, error.message);
+    }
+  }
+
+  console.log(`Opportunités de remplacement envoyées à ${sentCount}/${notifications.length} profs`);
+
+  return { success: true, sentCount };
 });
 
 /**
