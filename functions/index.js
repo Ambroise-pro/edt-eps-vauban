@@ -48,7 +48,7 @@ async function getUserNotificationPreferences(userId) {
 // URL de base de l'app, utilisée pour construire les liens de connexion sans
 // mot de passe envoyés dans les emails (mêmes jetons que le "Lien de connexion
 // unique" généré manuellement depuis la fiche prof).
-const APP_URL = "https://eps.ovh/edt";
+const APP_URL = "https://edt-eps-vauban.vercel.app";
 
 /**
  * Renvoie le jeton de connexion sans mot de passe d'un prof, en le créant
@@ -118,7 +118,7 @@ function getTaskAssignedEmailTemplate(task, teacherName, loginButtonHtml) {
             ${task.dueDate ? `<p><strong>Date limite :</strong> ${new Date(task.dueDate).toLocaleDateString("fr-FR")}</p>` : ""}
           </div>
 
-          <a href="https://eps.ovh/edt?taskId=${task.id}" class="button">Voir la tâche</a>
+          <a href="https://edt-eps-vauban.vercel.app/?taskId=${task.id}" class="button">Voir la tâche</a>
           ${loginButtonHtml || ""}
         </div>
         <div class="footer">
@@ -414,7 +414,7 @@ exports.sendReplacementNotification = functions.firestore.onDocumentCreated(
               ${absence?.reason ? `<p><strong>Motif :</strong> ${absence.reason}</p>` : ""}
             </div>
 
-            <a href="https://eps.ovh/edt" class="button">Consulter les détails</a>
+            <a href="https://edt-eps-vauban.vercel.app" class="button">Consulter les détails</a>
             ${buildLoginButtonHtml(loginToken)}
           </div>
           <div class="footer">
@@ -515,7 +515,7 @@ exports.sendReplacementOpportunityEmails = onCall({ secrets: [GMAIL_APP_PASSWORD
               <p>Vous êtes compatible pour prendre le(s) créneau(x) suivant(s) :</p>
               ${sessionsHtml}
               <p>Si un créneau vous intéresse, connectez-vous à l'application et cliquez sur "Je me propose".</p>
-              <a href="https://eps.ovh/edt" class="button">Voir les absences</a>
+              <a href="https://edt-eps-vauban.vercel.app" class="button">Voir les absences</a>
               ${buildLoginButtonHtml(loginToken)}
             </div>
             <div class="footer">
@@ -607,7 +607,7 @@ exports.sendEdtInvitation = onCall({ secrets: [GMAIL_APP_PASSWORD] }, async (req
                 <p>L'emploi du temps pour l'année scolaire <strong>${schoolYear}</strong> a été finalisé.</p>
                 ${edtImageHtml}
                 <p>Consultez le planning complet en cliquant sur le lien ci-dessous :</p>
-                <a href="https://eps.ovh/edt" class="button">📊 Consulter mon EDT</a>
+                <a href="https://edt-eps-vauban.vercel.app" class="button">📊 Consulter mon EDT</a>
                 ${buildLoginButtonHtml(loginToken)}
                 <p style="margin-top: 30px; color: #666; font-size: 14px;">
                   Vous pouvez également accéder à votre emploi du temps à tout moment via l'application.
